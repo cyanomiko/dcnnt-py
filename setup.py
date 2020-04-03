@@ -15,7 +15,7 @@ setuptools.setup(
     description='UI-less tool to connect Android phone with desktop',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://?',
+    url='https://github.com/cyanomiko/dcnnt-py',
     packages=setuptools.find_packages(),
     classifiers=[
         'Development Status :: 4 - Beta',
