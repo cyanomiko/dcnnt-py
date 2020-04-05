@@ -1,13 +1,19 @@
 import os
 import json
-from typing import Optional, Iterable, Union
+from typing import Optional, Iterable, Union, Any
+
 
 class ConfEntryBase:
     """Basic class of simple configuration file value"""
+    HOME_DIR = os.environ['HOME']
 
     def __init__(self, name: str, description: str, optional: bool, default):
         self.name, self.description, self.optional = name, description, optional
         self.default = default() if callable(default) else default
+
+    def pre_process(self, value) -> Any:
+        """Process data from JSON before check"""
+        return value
 
     def check(self, value) -> Optional[str]:
         """Check if value is OK"""
@@ -126,6 +132,9 @@ class FileEntry(StringEntry):
                f'    directories created automatically: {self.make_dirs}\n' \
                f'    {self.description}\n'
 
+    def pre_process(self, value):
+        return value.replace('$HOME', self.HOME_DIR)
+
     def check(self, value):
         res = super().check(value)
         if res is not None:
@@ -164,6 +173,9 @@ class DirEntry(StringEntry):
                f'    must exist: {self.exists}\n' \
                f'    directories created automatically: {self.make_dirs}\n' \
                f'    {self.description}\n'
+
+    def pre_process(self, value):
+        return value.replace('$HOME', self.HOME_DIR)
 
     def check(self, value):
         res = super().check(value)
@@ -209,8 +221,9 @@ class ListEntry(ConfEntryBase):
             return f'Length of "{self.name}" ({length}) is more than max ({self.max_length})'
         if length < self.min_length:
             return f'Length of "{self.name}" ({length}) is less than min ({self.max_length})'
-        for entry in value:
-            res = self.entry.check(entry)
+        for i in range(len(value)):
+            value[i] = self.entry.pre_process(value[i])
+            res = self.entry.check(value[i])
             if res is not None:
                 return res
 
@@ -234,11 +247,13 @@ class DictEntry(ConfEntryBase):
         if not isinstance(value, dict):
             return f'Type of "{self.name}" is {type(value)}, dictionary expected'
         for entry in self.entries:
-            if entry.name not in value:
+            name = entry.name
+            if name not in value:
                 if not entry.optional:
                     return f'Entry "{entry.name}" not found in "{self.name}" dictionary'
             else:
-                res = entry.check(value[entry.name])
+                value[name] = entry.pre_process(value[name])
+                res = entry.check(value[name])
                 if res is not None:
                     return res
 
