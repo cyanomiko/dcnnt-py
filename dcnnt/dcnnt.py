@@ -28,9 +28,11 @@ def main():
     else:
         app = DConnectApp(args.configuration_directory, False)
         if args.mode == 'start':
+            app.check()
             app.init()
             print(f'Starting in background, pidfile: {app.pidfile}')
-            app.start()
+            app.daemonize()
+            app.run()
         elif args.mode == 'stop':
             pid = app.stop()
             if pid:
@@ -45,7 +47,3 @@ def main():
         else:
             print('Incorrect "mode" argument', file=sys.stderr)
             sys.exit(2)
-
-
-if __name__ == '__main__':
-    main()

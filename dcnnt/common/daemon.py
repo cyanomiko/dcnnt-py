@@ -62,36 +62,40 @@ class Daemon:
     def delpid(self):
         os.remove(self.pidfile)
 
-    def start(self):
-        """Start the daemon."""
-        # Check for a pidfile to see if the daemon already runs
-        try:
-            with open(self.pidfile, 'r') as pf:
+    def check(self):
+        """Check if daemon is not already running"""
+        if not os.path.isfile(self.pidfile):
+            return
+        with open(self.pidfile, 'r') as pf:
+            try:
                 pid = int(pf.read().strip())
-        except IOError:
-            pid = None
-
-        if pid:
-            message = "pidfile {0} already exist. " + \
-                      "Daemon already running?\n"
-            sys.stderr.write(message.format(self.pidfile))
-            sys.exit(1)
-        # Start the daemon
-        self.daemonize()
-        self.run()
+            except ValueError:
+                sys.stderr.write(f'Incorrect content of pidfile "{self.pidfile}", move to "{self.pidfile}.bak"\n')
+                os.rename(self.pidfile, f'{self.pidfile}.bak')
+                return
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            sys.stderr.write(f'Pidfile "{self.pidfile}" exists, but no process with PID {pid} found\n')
+            return
+        except Exception:
+            pass
+        sys.stderr.write(f'Pidfile "{self.pidfile}" and process with PID {pid} exist. '
+                         f'Daemon already running?\n')
+        sys.exit(1)
 
     def stop(self):
         """Stop the daemon."""
-        # Get the pid from the pidfile
-        try:
+        pid = None
+        if os.path.isfile(self.pidfile):
             with open(self.pidfile, 'r') as pf:
-                pid = int(pf.read().strip())
-        except IOError:
-            pid = None
+                try:
+                    pid = int(pf.read().strip())
+                except ValueError:
+                    sys.stderr.write(f'Incorrect content of pidfile "{self.pidfile}"\n')
+                    return
         if not pid:
-            message = "pidfile {0} does not exist. " + \
-                      "Daemon not running?\n"
-            sys.stderr.write(message.format(self.pidfile))
+            sys.stderr.write(f'Pidfile "{self.pidfile} does not exist. Daemon not running?"\n')
             return  # not an error in a restart
         # Try killing the daemon process	
         try:
