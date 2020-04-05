@@ -41,9 +41,11 @@ def main():
             pid = app.stop()
             if pid:
                 print(f'Process {pid} stopped')
+            app.check()
             app.init()
             print(f'Restarting, pidfile: {app.pidfile}')
-            app.start()
+            app.daemonize()
+            app.run()
         else:
             print('Incorrect "mode" argument', file=sys.stderr)
             sys.exit(2)
