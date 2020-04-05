@@ -10,7 +10,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--doc', help='Print conf doc and exit', action='store_true')
     parser.add_argument('-c', '--configuration-directory', help='Path to configuration directory',
-                        default=os.path.join(os.environ['HOME'], '.config', 'dconnect'))
+                        default=os.path.join(os.environ['HOME'], '.config', 'dcnnt'))
     parser.add_argument('mode', choices=('doc', 'foreground', 'start', 'stop', 'restart'), nargs='?', default='start',
                         help='Mode to run programm: doc - just print config documentation and exit, '
                              'foreground - run programm in current tty, '

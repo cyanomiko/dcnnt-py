@@ -22,7 +22,7 @@ class DConnectApp(Daemon):
     """Main application class band all components together"""
     CONFIG_SCHEMA = DictEntry('conf.json', 'Main configuration of dconnect server', False, entries=(
         DictEntry('log', 'Logger configuration', False, entries=(
-            FileEntry('path', 'Path to first log file', False, 'logs/dconnect.log', True, False),
+            FileEntry('path', 'Path to first log file', False, '$HOME/.log/dcnnt.log', True, False),
             IntEntry('size', 'Maximum size of log file', False, 1024, 1073741824, 262144),
             IntEntry('count', 'Count of log files', False, 0, 1024, 3),
         )),
@@ -58,7 +58,7 @@ class DConnectApp(Daemon):
     def init_logger(self):
         """Create console and rotating file logger with parameters specified in configuration"""
         conf = self.conf['log']
-        logger = logging.getLogger('dconnect')
+        logger = logging.getLogger('dcnnt')
         logger.setLevel(logging.DEBUG)
         if conf['count'] > 0:
             logger.addHandler(logging.handlers.RotatingFileHandler(
