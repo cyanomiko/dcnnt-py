@@ -23,7 +23,7 @@ Example:
 
     .
     |-conf.json - main dcnnt config
-    |-devices - credentials of known devices in files "<uin>.device.json"
+    |-devices - credentials of known devices
     | |-1337.device.json
     | |-phone.device.json
     | |-12309.device.json
@@ -35,3 +35,27 @@ Example:
       |-rcmd.conf.json
       |-my_phone.rcmd.conf.json
       |-1337.rcmd.conf.json
+
+Devices
+-------
+
+Device configuration is simple JSON dictionary contains data:
+
+* *uin* - unique identifier of device, integer from 0x0F to 0x0FFFFFFF 
+* *name* - name of device, string 1 to 40 characters length
+* *description* - verbose description of device, string 0 to 200 characters length
+* *role* - string constant, must be `client` 
+* *password* - access password, string 0 to 4096 characters length
+
+Yes, passwords stored in plain text now. 
+
+Example:
+
+    {
+      "description": "UIN is not 0xFFFF",
+      "name": "Phone",
+      "password": "very c0mpleks pAccv0rd",
+      "role": "client",
+      "uin": 65543
+    }
+
