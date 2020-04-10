@@ -59,3 +59,50 @@ Example:
       "uin": 65543
     }
 
+Plugins
+-------
+
+There are two types of configuration files for plugins: 
+* base plugin configs,
+* device-specific overrides. 
+
+Overrides used to replace configuration of plugin for one specific device.
+Main plugin config and overrides have same basic format with one mandatory option:  
+
+* *device* - must be `null` for base plugin config or UIN of device for device-specific override
+
+Example:
+
+Base config `file.conf.json`:
+
+    {
+      "device": null,
+      "download_directory": "$HOME/Downloads/dcnnt",
+      "shared_dirs": [
+        {
+          "path": "$HOME/Shared",
+          "glob": "*.jpg",
+          "name": "Shared diretory",
+          "deep": 100
+        }
+      ]
+    }
+
+Override `my_phone.file.conf.json`:
+
+    {
+      "device": 65543,
+      "download_directory": "$HOME/Downloads/dcnnt",
+      "shared_dirs": [
+        {
+          "path": "$HOME/Shared",
+          "glob": "*",
+          "name": "Shared diretory",
+          "deep": 100
+        }
+      ]
+    }
+
+Here device with UIN `65543` has access to any file in directory `Shared` 
+while other devices have access to JPG photos only.
+
