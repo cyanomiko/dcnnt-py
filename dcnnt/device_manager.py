@@ -41,47 +41,6 @@ class DeviceManager(dict):
         super().__init__()
         self.app, self.log, self.directory = app, app.log, directory
 
-    # def _load_dict(self, path):
-    #     """Load items information from file"""
-    #     try:
-    #         f = open(path)
-    #         return json.load(f)
-    #     except json.JSONDecodeError as e:
-    #         self.log.warning('Incorrect JSON in file "{}": {}'.format(path, e))
-    #         return {}
-    #     except IOError:
-    #         self.log.error('Could not open file "{}"'.format(path))
-    #         return {}
-    #
-    # def _check_dict(self, d):
-    #     """Check if all required fields in dictionary exists and has correct type"""
-    #     if not isinstance(d, dict):
-    #         self.log.warning('JSON content is not dictionary')
-    #         return False
-    #     try:
-    #         uin, name, description, role, password = d['uin'], d['name'], d['description'], d['role'], d['password']
-    #     except KeyError as e:
-    #         self.log.warning('Key not found in JSON: {}'.format(e))
-    #         return False
-    #     if not (isinstance(uin, int) and isinstance(name, str) and isinstance(role, str) and
-    #             isinstance(description, str) and isinstance(password, (str, type(None)))):
-    #         self.log.warning('Type error in device JSON')
-    #         return False
-    #     if not (1 <= uin <= 0xFFFFFFFFFFFFFFFF):
-    #         self.log.warning('UIN value "{}" out of range'.format(uin))
-    #         return False
-    #     if not (0 < len(name) <= 40):
-    #         self.log.warning('Too long of empty device name: "{}"'.format(name))
-    #         return False
-    #     if not (role in ('client', 'server')):
-    #         self.log.warning('Incorrect role: "{}"'.format(role))
-    #         return False
-    #     if isinstance(password, str):
-    #         if not (4 <= len(password) <= 256):
-    #             self.log.warning('Too long or too short password for device')
-    #             return False
-    #     return True
-
     def find_files(self, directory):
         """Find files in directory self.directory by wildcard"""
         return fnmatch.filter(os.listdir(directory), self.FILENAME_TEMPLATE.format('*'))
