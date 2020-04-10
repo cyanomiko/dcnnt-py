@@ -62,7 +62,7 @@ class Plugin:
         """Get value from config using path - key or key sequence.
         If uin is integer - try get from device-specific conf"""
         uin = self.device.uin
-        conf = self.MAIN_CONF.get(uin, self.MAIN_CONF)
+        conf = self.DEVICE_CONFS.get(uin, self.MAIN_CONF)
         if not isinstance(path, (tuple, list)):
             path = (path, )
         node = conf
