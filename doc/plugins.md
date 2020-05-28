@@ -34,7 +34,7 @@ Example `file.conf.json`:
           "glob": "*",
           "name": null,
           "deep": 100
-        },
+        }
       ]
     }
 
