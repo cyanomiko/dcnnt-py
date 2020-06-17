@@ -43,3 +43,6 @@ Stop daemon:
 Run in foreground mode:
 
     dcnnt foreground
+    
+Plugins: [doc/plugins.md](doc/plugins.md)  
+Configuring: [doc/config.md](doc/config.md) 
