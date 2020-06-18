@@ -10,7 +10,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 setuptools.setup(
     name='dcnnt',
     version='0.3.5',
-    author='Andrew Kolyaskin',
+    author='cyanomiko',
     author_email='cyanomiko@protonmail.com',
     description='UI-less tool to connect Android phone with desktop',
     long_description=long_description,
