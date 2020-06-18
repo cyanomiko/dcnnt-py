@@ -16,9 +16,9 @@ class NotificationsPlugin(Plugin):
         FileEntry('icon_path', 'Path to save notification icon', False, '/tmp/dc-icon.png', True, False),
         TemplateEntry('cmd', 'Template of notification show command',
                       False, 0, 4096, "notify-send -i '{icon}' '{title}' '{text}'", replacements=(
-                Rep('icon', 'Path to saved notification icon', False),
-                Rep('title', 'Title of notification', False),
-                Rep('text', 'Main content of notification', False),
+                Rep('icon', 'Path to saved notification icon', True),
+                Rep('title', 'Title of notification', True),
+                Rep('text', 'Main content of notification', True),
             ))
     ))
 
