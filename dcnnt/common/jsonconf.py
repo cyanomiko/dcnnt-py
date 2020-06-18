@@ -106,11 +106,14 @@ class TemplateEntry(StringEntry):
     def check(self, value):
         res = super().check(value)
         if res is None:
-            test_dict = {i.name: '%TEST%' for i in self.replacements if not i.optional}
+            test_dict = {i.name: '%TEST%' for i in self.replacements}
             try:
                 value.format(**test_dict)
             except KeyError as e:
                 return f'Template key failed {str(e)}, required keys: {tuple(test_dict.keys())}'
+            for key in filter(lambda x: not x.optional, self.replacements):
+                if '{' + key.name not in value:
+                    return f'Key "{key.name}" not vound in template, required keys: {tuple(test_dict.keys())}'
         else:
             return res
 
