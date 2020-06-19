@@ -60,7 +60,7 @@ Example `nots.conf.json`:
 
     {
       "device": null,
-      "icon_path": "/tmp/dcnnt-notification-icon.png,
+      "icon_path": "/tmp/dcnnt-notification-icon.png",
       "cmd": "notify-send -i '{icon}' '{title}' '{text}'"
     }
 
