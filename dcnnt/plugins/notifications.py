@@ -37,9 +37,10 @@ class NotificationsPlugin(Plugin):
                     cmd = self.conf('cmd')
                     icon_path = self.conf('icon_path')
                     text = request.params.get('text')
+                    has_icon = request.params.get('packageIcon', False)
                     if text is None:
                         text = ''
-                    if request.params.get('packageIcon', False):
+                    if has_icon:
                         icon_data = self.read()
                         if icon_path:
                             try:
@@ -47,6 +48,7 @@ class NotificationsPlugin(Plugin):
                             except Exception as e:
                                 self.log(e, logging.WARNING)
                     if cmd:
-                        command = cmd.format(icon=icon_path, text=text, title=request.params.get('title', 'NULL'))
+                        icon = icon_path if has_icon else ''
+                        command = cmd.format(icon=icon, text=text, title=request.params.get('title', 'NULL'))
                         self.log('Execute: "{}"'.format(command))
                         subprocess.call(command, shell=True)
