@@ -16,6 +16,9 @@ class NotificationsPlugin(Plugin):
         FileEntry('icon_path', 'Path to save notification icon', False, '/tmp/dc-icon.png', True, False),
         TemplateEntry('cmd', 'Template of notification show command',
                       False, 0, 4096, "notify-send -i '{icon}' '{title}' '{text}'", replacements=(
+                Rep('uin', 'UIN of device which send notification', True),
+                Rep('name', 'Name of device which send notification', True),
+                Rep('package', 'Name of Android package  which create notification', True),
                 Rep('icon', 'Path to saved notification icon', True),
                 Rep('title', 'Title of notification', True),
                 Rep('text', 'Main content of notification', True),
@@ -32,23 +35,24 @@ class NotificationsPlugin(Plugin):
             if request is None:
                 self.log('No more requests, stop handler')
                 return
+            cmd = self.conf('cmd')
+            if not cmd:
+                return
             if request.method == 'notification':
+                icon_data = self.read() if request.params.get('packageIcon', False) else None
                 if request.params.get('event') == 'posted':
-                    cmd = self.conf('cmd')
                     icon_path = self.conf('icon_path')
-                    text = request.params.get('text')
-                    has_icon = request.params.get('packageIcon', False)
+                    text, package = map(request.params.get, ('text', 'package'))
+                    title = request.params.get('title', 'NULL')
+                    name, uin = self.device.name, self.device.uin
                     if text is None:
                         text = ''
-                    if has_icon:
-                        icon_data = self.read()
-                        if icon_path:
-                            try:
-                                open(icon_path, 'wb').write(icon_data)
-                            except Exception as e:
-                                self.log(e, logging.WARNING)
-                    if cmd:
-                        icon = icon_path if has_icon else ''
-                        command = cmd.format(icon=icon, text=text, title=request.params.get('title', 'NULL'))
-                        self.log('Execute: "{}"'.format(command))
-                        subprocess.call(command, shell=True)
+                    if bool(icon_data) and bool(icon_path):
+                        try:
+                            open(icon_path, 'wb').write(icon_data)
+                        except Exception as e:
+                            self.log(e, logging.WARNING)
+                    icon = icon_path if icon_data else ''
+                    command = cmd.format(uin=uin, name=name, icon=icon, text=text, title=title, package=package)
+                    self.log('Execute: "{}"'.format(command))
+                    subprocess.call(command, shell=True)
