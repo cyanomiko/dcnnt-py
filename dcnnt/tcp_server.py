@@ -16,7 +16,7 @@ class DConnectThreadingTCPServer(ThreadingMixIn, TCPServer):
 
 class DConnectHandler(BaseRequestHandler):
     """Parse header, do authentication routines, then create plugin instance to work with connection"""
-    TIMEOUT = 3
+    TIMEOUT = 10
 
     def __init__(self, request, client_address, server):
         super().__init__(request, client_address, server)
