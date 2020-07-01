@@ -68,7 +68,7 @@ class DeviceManager(dict):
 
     def load_item(self, path):
         """Load device file data and create device object"""
-        device_dict = ConfigLoader(path, self.JSON_SCHEMA, False).load()
+        device_dict = ConfigLoader(self.app.environment, path, self.JSON_SCHEMA, False).load()
         if isinstance(device_dict, dict):
             return device_dict['uin'], Device(**device_dict)
         self.log.warning(device_dict)

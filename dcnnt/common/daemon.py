@@ -9,17 +9,7 @@ class Daemon:
     """Set of daemon functions"""
 
     def __init__(self):
-        self.pidfile = self.pidfile_path()
-
-    @staticmethod
-    def pidfile_path():
-        """Try to determine pidfile path"""
-        os.getuid()
-        run_dir = os.path.join('/', 'var', 'run', 'user', str(os.getuid()))
-        if os.path.isdir(run_dir):
-            return os.path.join(run_dir, 'dcnnt.pid')
-        else:
-            return os.path.join(os.environ['HOME'], '.dcnnt.pid')
+        self.pidfile = os.path.join(os.environ['HOME'], '.dcnnt.pid')
 
     def daemonize(self):
         """Deamonize class. UNIX double fork mechanism."""

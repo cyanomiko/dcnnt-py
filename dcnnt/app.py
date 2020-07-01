@@ -33,17 +33,19 @@ class DConnectApp(Daemon):
             StringEntry('password', 'Password to access to device from clients', False, 0, 4096, 'password'),
         )),
         IntEntry('port', 'Port for UDP and TCP sockets', False, 1, 0xFFFF, 5040),
-        FileEntry('pidfile', 'Path to pidfile for daemon mode', True, Daemon.pidfile_path(), False, False)
+        FileEntry('pidfile', 'Path to pidfile for daemon mode', True, '', False, False)
     ))
 
     def __init__(self, directory: str, foreground: bool):
         super().__init__()
         self.dev = None
+        self.xdg_runtime_dir = '/tmp'
         self.directory = directory
         self.foreground = foreground
+        self.environment = self.init_environment()
         self.conf = self.init_conf(os.path.join(directory, 'conf.json'))
-        if self.conf.get('pidfile'):
-            self.pidfile = self.conf.get('pidfile')
+        conf_pidfile = self.conf.get('pidfile')
+        self.pidfile = conf_pidfile if conf_pidfile else os.path.join(self.xdg_runtime_dir, 'dcnnt.pid')
         self.log = self.init_logger()
         self.dm = self.plugins = self.udp = self.tcp = self.udp_thread = self.tcp_thread = None
 
@@ -54,6 +56,21 @@ class DConnectApp(Daemon):
         self.udp = self.init_udp()
         self.tcp = self.init_tcp()
         self.udp_thread = self.tcp_thread = None
+
+    def init_environment(self):
+        """Load environment variables"""
+        env = {k: v for k, v in os.environ.items()}
+        xdg_runtime_dir = env.get('XDG_RUNTIME_DIR', os.path.join('/', 'var', 'run', 'user', str(os.getuid())))
+        if not os.path.isdir(xdg_runtime_dir):
+            xdg_runtime_dir = '/tmp'
+            runtime_dir = os.path.join(xdg_runtime_dir, 'dcnnt')
+            os.makedirs(runtime_dir, exist_ok=True)
+        else:
+            runtime_dir = os.path.join(xdg_runtime_dir, 'dcnnt')
+            os.makedirs(runtime_dir, exist_ok=True)
+        self.xdg_runtime_dir = xdg_runtime_dir
+        env['DCNNT_RUNTIME_DIR'] = runtime_dir
+        return env
 
     def init_logger(self):
         """Create console and rotating file logger with parameters specified in configuration"""
@@ -69,7 +86,7 @@ class DConnectApp(Daemon):
 
     def init_conf(self, path):
         """Load configuration from JSON file"""
-        res = ConfigLoader(path, self.CONFIG_SCHEMA, True).load()
+        res = ConfigLoader(self.environment, path, self.CONFIG_SCHEMA, True).load()
         if isinstance(res, dict):
             info = res['self']
             dev = Device(info['uin'], info['name'], info['description'], 'server', info['password'])
@@ -89,7 +106,7 @@ class DConnectApp(Daemon):
         plugins = dict()
         plugins_dir = os.path.join(self.directory, 'plugins')
         for plg in PLUGINS:
-            initer = PluginInitializer(plugins_dir, self.log, plg)
+            initer = PluginInitializer(self.environment, plugins_dir, self.log, plg)
             if initer.init_plugin():
                 plugins[plg.MARK] = plg
         return plugins

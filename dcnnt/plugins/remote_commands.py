@@ -15,8 +15,8 @@ class RemoteCommandsPlugin(Plugin):
         ListEntry('menu', 'List of remote commands', False, 0, 1073741824, (),
                   entry=DictEntry('menu[]', 'Description of shared directory', False, entries=(
                       StringEntry('name', 'Displayed name for remote command', False, 0, 60, 'Do nothing'),
-                      StringEntry('method', 'Method to execute command', True, 0, 1024, 'shell'),
-                      StringEntry('cmd', 'Remote called command itself', True, 0, 1073741824, 'true'),
+                      StringEntry('method', 'Method to execute command', True, 0, 1024, None),
+                      StringEntry('cmd', 'Remote called command itself', True, 0, 1073741824, None),
                   )))
     ))
     PART = 65532
@@ -26,13 +26,13 @@ class RemoteCommandsPlugin(Plugin):
         self.remote_commands = dict()
         self.remote_commands_index = list()
         for command in self.conf('menu'):
-            if 'cmd' in command and 'method' in command:
-                identifier = str(hash(command['cmd'] + command['method']))
+            name, description, cmd, method = map(command.get, ('name', 'description', 'cmd', 'method'))
+            if cmd is not None and method is not None:
+                identifier = str(hash(cmd + method))
                 self.remote_commands[identifier] = command
             else:
                 identifier = None
-            self.remote_commands_index.append(
-                dict(index=identifier, name=command['name'], description=command.get('description')))
+            self.remote_commands_index.append(dict(index=identifier, name=name, description=description))
 
     def handle_exec(self, request):
         """Run command and send message with bool execution result"""

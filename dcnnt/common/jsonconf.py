@@ -1,6 +1,7 @@
 import os
 import json
-from typing import Optional, Iterable, Union, Any
+from string import Template
+from typing import Optional, Iterable, Union, Any, Dict
 
 
 class ConfEntryBase:
@@ -11,11 +12,11 @@ class ConfEntryBase:
         self.name, self.description, self.optional = name, description, optional
         self.default = default() if callable(default) else default
 
-    def pre_process(self, value) -> Any:
+    def pre_process(self, value, environment: Optional[Dict[str, str]] = None) -> Any:
         """Process data from JSON before check"""
-        return value
+        return self.default if value is None and self.optional else value
 
-    def check(self, value) -> Optional[str]:
+    def check(self, value, environment: Optional[Dict[str, str]] = None) -> Optional[str]:
         """Check if value is OK"""
         raise NotImplementedError
 
@@ -39,7 +40,7 @@ class IntEntry(ConfEntryBase):
                f'    max: {self.max}\n' \
                f'    {self.description}\n'
 
-    def check(self, value):
+    def check(self, value, environment: Optional[Dict[str, str]] = None):
         if self.optional and value is None:
             return
         if not isinstance(value, int):
@@ -53,7 +54,8 @@ class IntEntry(ConfEntryBase):
 class StringEntry(ConfEntryBase):
     """Description of string config entry"""
 
-    def __init__(self, name: str, description: str, optional: bool, min_length: int, max_length: int, default: str):
+    def __init__(self, name: str, description: str, optional: bool,
+                 min_length: int, max_length: int, default: Optional[str]):
         super().__init__(name, description, optional, default)
         self.min_length, self.max_length = min_length, max_length
 
@@ -64,7 +66,7 @@ class StringEntry(ConfEntryBase):
                f'    max length: {self.max_length}\n' \
                f'    {self.description}\n'
 
-    def check(self, value):
+    def check(self, value, environment: Optional[Dict[str, str]] = None):
         if self.optional and value is None:
             return
         if not isinstance(value, str):
@@ -89,7 +91,8 @@ class Rep:
 class TemplateEntry(StringEntry):
     """Description of sting-template config entry"""
     
-    def __init__(self, name: str, description: str, optional: bool, min_length: int, max_length: int, default: str, replacements: Iterable[Rep]):
+    def __init__(self, name: str, description: str, optional: bool, min_length: int,
+                 max_length: int, default: Optional[str], replacements: Iterable[Rep]):
         super().__init__(name, description, optional, min_length, max_length, default)
         self.replacements = replacements
 
@@ -103,8 +106,8 @@ class TemplateEntry(StringEntry):
                f'        {replacement_description}\n' \
                f'    {self.description}\n'
 
-    def check(self, value):
-        res = super().check(value)
+    def check(self, value, environment: Optional[Dict[str, str]] = None):
+        res = super().check(value, environment)
         if res is None:
             test_dict = {i.name: '%TEST%' for i in self.replacements}
             try:
@@ -121,7 +124,8 @@ class TemplateEntry(StringEntry):
 class FileEntry(StringEntry):
     """Description of filesystem path config entry"""
 
-    def __init__(self, name: str, description: str, optional: bool, default: str, make_dirs: bool, exists: bool):
+    def __init__(self, name: str, description: str, optional: bool, default: Optional[str],
+                 make_dirs: bool, exists: bool):
         super().__init__(name, description, optional, 0, 16384, default)
         self.make_dirs, self.exists = make_dirs, exists
 
@@ -135,11 +139,11 @@ class FileEntry(StringEntry):
                f'    directories created automatically: {self.make_dirs}\n' \
                f'    {self.description}\n'
 
-    def pre_process(self, value):
-        return value.replace('$HOME', self.HOME_DIR)
+    def pre_process(self, value, environment: Optional[Dict[str, str]] = None):
+        return Template(super().pre_process(value, environment)).safe_substitute(environment)
 
-    def check(self, value):
-        res = super().check(value)
+    def check(self, value, environment: Optional[Dict[str, str]] = None):
+        res = super().check(value, environment)
         if res is not None:
             return res
         if not os.path.isfile(value):
@@ -162,8 +166,8 @@ class FileEntry(StringEntry):
 class DirEntry(StringEntry):
     """Description of directory path config entry"""
 
-    def __init__(self, name: str, description: str, optional: bool, default: str, make_dirs: bool,
-                 exists: bool):
+    def __init__(self, name: str, description: str, optional: bool, default: Optional[str],
+                 make_dirs: bool, exists: bool):
         super().__init__(name, description, optional, 0, 16384, default)
         self.make_dirs, self.exists = make_dirs, exists
 
@@ -177,11 +181,11 @@ class DirEntry(StringEntry):
                f'    directories created automatically: {self.make_dirs}\n' \
                f'    {self.description}\n'
 
-    def pre_process(self, value):
-        return value.replace('$HOME', self.HOME_DIR)
+    def pre_process(self, value, environment: Optional[Dict[str, str]] = None):
+        return Template(super().pre_process(value, environment)).safe_substitute(environment)
 
-    def check(self, value):
-        res = super().check(value)
+    def check(self, value, environment: Optional[Dict[str, str]] = None):
+        res = super().check(value, environment)
         if res is not None:
             return res
         if not os.path.isdir(value):
@@ -214,7 +218,7 @@ class ListEntry(ConfEntryBase):
                f'    {self.description}\n' \
                f'    entries: \n{str(self.entry)}\n'
 
-    def check(self, value):
+    def check(self, value, environment: Optional[Dict[str, str]] = None):
         if self.optional and value is None:
             return
         if not isinstance(value, list):
@@ -225,8 +229,8 @@ class ListEntry(ConfEntryBase):
         if length < self.min_length:
             return f'Length of "{self.name}" ({length}) is less than min ({self.max_length})'
         for i in range(len(value)):
-            value[i] = self.entry.pre_process(value[i])
-            res = self.entry.check(value[i])
+            value[i] = self.entry.pre_process(value[i], environment)
+            res = self.entry.check(value[i], environment)
             if res is not None:
                 return res
 
@@ -244,21 +248,19 @@ class DictEntry(ConfEntryBase):
                f'    {self.description}\n' \
                f'    entries: \n\n{entries_description}\n'
 
-    def check(self, value):
+    def check(self, value, environment: Optional[Dict[str, str]] = None):
         if self.optional and value is None:
             return
         if not isinstance(value, dict):
             return f'Type of "{self.name}" is {type(value)}, dictionary expected'
         for entry in self.entries:
             name = entry.name
-            if name not in value:
-                if not entry.optional:
-                    return f'Entry "{entry.name}" not found in "{self.name}" dictionary'
-            else:
-                value[name] = entry.pre_process(value[name])
-                res = entry.check(value[name])
-                if res is not None:
-                    return res
+            if name not in value and not entry.optional:
+                return f'Entry "{entry.name}" not found in "{self.name}" dictionary'
+            value[name] = entry.pre_process(value.get(name), environment)
+            res = entry.check(value[name], environment)
+            if res is not None:
+                return res
 
     def get_default(self):
         return {i.name: i.get_default() for i in self.entries if not i.optional}
@@ -267,8 +269,8 @@ class DictEntry(ConfEntryBase):
 class ConfigLoader:
     """Loading and check facility for JSON configs, can also create default one"""
 
-    def __init__(self, path: str, schema: DictEntry, create_defult: bool):
-        self.path, self.schema, self.create_default = path, schema, create_defult
+    def __init__(self, environment: Dict[str, str], path: str, schema: DictEntry, create_defult: bool):
+        self.environment, self.path, self.schema, self.create_default = environment, path, schema, create_defult
 
     def load(self) -> Union[dict, str]:
         """Load and check configuration, create default optionally"""
@@ -286,7 +288,7 @@ class ConfigLoader:
             conf = json.load(open(self.path))
             if not isinstance(conf, dict):
                 return f'JSON config file {self.path} must contain dictionary'
-            res = self.schema.check(conf)
+            res = self.schema.check(conf, self.environment)
             if res is not None:
                 return f'Error in configuration file {self.path}: {res}'
             return conf

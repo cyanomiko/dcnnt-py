@@ -7,21 +7,21 @@ from ..common import *
 class PluginInitializer:
     """Facility to set some static variables for plugin classes"""
 
-    def __init__(self, plugin_dir, log, cls):
-        self.plugin_dir, self.log, self.cls = plugin_dir, log, cls
+    def __init__(self, environment, plugin_dir, log, cls):
+        self.environment, self.plugin_dir, self.log, self.cls = environment, plugin_dir, log, cls
 
     def init_plugin(self):
         """Load plugin configurations and set up class to using in app"""
         name = self.cls.NAME
         mark = self.cls.MARK.decode('ascii')
         main_conf_path = os.path.join(self.plugin_dir, '{}.conf.json'.format(mark))
-        res = ConfigLoader(main_conf_path, self.cls.CONFIG_SCHEMA, True).load()
+        res = ConfigLoader(self.environment, main_conf_path, self.cls.CONFIG_SCHEMA, True).load()
         if isinstance(res, str):
             self.log.error(f'Plugin "{name}" init fail: {res}')
             return False
         self.cls.MAIN_CONF = res
         for path in glob.glob(os.path.join(self.plugin_dir, '*.{}.conf.json'.format(mark))):
-            res = ConfigLoader(path, self.cls.CONFIG_SCHEMA, False).load()
+            res = ConfigLoader(self.environment, path, self.cls.CONFIG_SCHEMA, False).load()
             if isinstance(res, str):
                 self.log.warning(f'Plugin "{name}" dev conf fail: {res}')
             else:
