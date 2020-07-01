@@ -50,17 +50,26 @@ Other notification data such as title, text, etc sent as JSON then substituted t
 
 Options:
 
-* *icon_path* - path to save icon data to
+* *icon_dir* - directory for notification icons temporary files
 * *cmd* - shell command that invoked on every received notification with some replacements:
-  * `{icon}` - replaced with *icon_path*
+  * `{uin}` - replaced with UIN of device which send notification
+  * `{name}` - replaced with name of device which send notification
+  * `{package}` - replaced with name of Android package which create notification (e.g. `org.example.messages`)
+  * `{icon}` - replaced with path to icon temporary file
   * `{title}` - replaced with notification title text
   * `{text}` - replaced with notification text
+
+If option *icon_dir* not defined, value `$DCNNT_RUNTIME_DIR` will be used instead.  
+Value of `$DCNNT_RUNTIME_DIR` is one of next variants:  
+1. `$XDG_RUNTIME_DIR/dcnnt` - if `XDG_RUNTIME_DIR` env var defined
+2. `/var/run/user/$UID/dcnnt` - if directory `/var/run/user/$UID` exists or may be created
+3. `/tmp/dcnnt` - otherwise 
 
 Example `nots.conf.json`:
 
     {
       "device": null,
-      "icon_path": "/tmp/dcnnt-notification-icon.png",
+      "icon_dir": "$DCNNT_RUNTIME_DIR",
       "cmd": "notify-send -i '{icon}' '{title}' '{text}'"
     }
 
