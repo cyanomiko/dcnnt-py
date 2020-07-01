@@ -13,7 +13,7 @@ class NotificationsPlugin(Plugin):
     DEVICE_CONFS = dict()
     CONFIG_SCHEMA = DictEntry('rcmd.conf.json', 'Configuration for remote commands file', False, entries=(
         IntEntry('uin', 'UIN of device for which config will be applied', True, 1, 0xFFFFFFF, None),
-        FileEntry('icon_path', 'Path to save notification icon', False, '/tmp/dc-icon.png', True, False),
+        DirEntry('icon_dir', 'Directory to notification icons', True, '$DCNNT_RUNTIME_DIR', True, False),
         TemplateEntry('cmd', 'Template of notification show command',
                       False, 0, 4096, "notify-send -i '{icon}' '{title}' '{text}'", replacements=(
                 Rep('uin', 'UIN of device which send notification', True),
@@ -41,13 +41,13 @@ class NotificationsPlugin(Plugin):
             if request.method == 'notification':
                 icon_data = self.read() if request.params.get('packageIcon', False) else None
                 if request.params.get('event') == 'posted':
-                    icon_path = self.conf('icon_path')
                     text, package = map(request.params.get, ('text', 'package'))
                     title = request.params.get('title', 'NULL')
                     name, uin = self.device.name, self.device.uin
                     if text is None:
                         text = ''
-                    if bool(icon_data) and bool(icon_path):
+                    icon_path = os.path.join(self.conf('icon_dir'), f'{package}.{self.device.uin}.icon.png')
+                    if bool(icon_data):
                         try:
                             open(icon_path, 'wb').write(icon_data)
                         except Exception as e:
