@@ -50,6 +50,9 @@ class RPCRequest(RPCObject):
         assert isinstance(id, (int, str)) or id is None, '"id" MUST be int, str or None'
         self.method, self.params, self.id = method, params, id
 
+    def __repr__(self):
+        return f'<JSON-RPC 2.0 Request [{self.id}]: {self.method}({self.params})>'
+
     def to_dict(self):
         """Convert to JSON-RPC 2.0 dictionary"""
         d = dict(jsonrpc='2.0', method=self.method, params=self.params)
@@ -77,6 +80,9 @@ class RPCResponse(RPCObject):
             self.error, self.result = result, None
         else:
             self.error, self.result = None, result
+
+    def __repr__(self):
+        return f'<JSON-RPC 2.0 Request [{self.id}]: {self.error if self.result is None else self.result}>'
 
     def to_dict(self):
         """Convert to JSON-RPC 2.0 dictionary"""
