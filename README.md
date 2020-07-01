@@ -44,5 +44,5 @@ Run in foreground mode:
 
     dcnnt foreground
     
-Plugins: [doc/plugins.md](doc/plugins.md)  
-Configuring: [doc/config.md](doc/config.md) 
+Plugins: [doc/plugins.md](doc/plugins.md) (https://github.com/cyanomiko/dcnnt-py/blob/master/doc/plugins.md)  
+Configuring: [doc/config.md](doc/config.md) (https://github.com/cyanomiko/dcnnt-py/blob/master/doc/config.md)
