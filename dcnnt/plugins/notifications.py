@@ -16,13 +16,13 @@ class NotificationsPlugin(Plugin):
         DirEntry('icon_dir', 'Directory to notification icons', True, '$DCNNT_RUNTIME_DIR', True, False),
         TemplateEntry('cmd', 'Template of notification show command',
                       False, 0, 4096, "notify-send -i '{icon}' '{title}' '{text}'", replacements=(
-                Rep('uin', 'UIN of device which send notification', True),
-                Rep('name', 'Name of device which send notification', True),
-                Rep('package', 'Name of Android package  which create notification', True),
-                Rep('icon', 'Path to saved notification icon', True),
-                Rep('title', 'Title of notification', True),
-                Rep('text', 'Main content of notification', True),
-            ))
+                          Rep('uin', 'UIN of device which send notification', True),
+                          Rep('name', 'Name of device which send notification', True),
+                          Rep('package', 'Name of Android package  which create notification', True),
+                          Rep('icon', 'Path to saved notification icon', True),
+                          Rep('title', 'Title of notification', True),
+                          Rep('text', 'Main content of notification', True),
+                      ))
     ))
 
     def __init__(self, app, handler, device):

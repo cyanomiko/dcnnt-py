@@ -28,7 +28,8 @@ class FileTransferPlugin(Plugin):
     PART = 65532
     shared_files_index = list()
 
-    def check_file_filter(self, path: str, glob_str: str) -> bool:
+    @staticmethod
+    def check_file_filter(path: str, glob_str: str) -> bool:
         """Check if file allowed for sharing by filter"""
         return fnmatch.fnmatch(path, glob_str)
 
@@ -49,7 +50,7 @@ class FileTransferPlugin(Plugin):
             elif os.path.isfile(path):
                 if self.check_file_filter(path, filter_data):
                     self.shared_files_index.append(path)
-                    index=len(self.shared_files_index) - 1
+                    index = len(self.shared_files_index) - 1
                     res.append(dict(name=name, node_type='file', size=os.path.getsize(path), index=index))
         return res
 

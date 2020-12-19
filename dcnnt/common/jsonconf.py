@@ -29,9 +29,9 @@ class IntEntry(ConfEntryBase):
     """Description of integer config entry"""
 
     def __init__(self, name: str, description: str, optional: bool,
-                 min: int, max: int, default: Optional[int]):
+                 min_value: int, max_value: int, default: Optional[int]):
         super().__init__(name, description, optional, default)
-        self.min, self.max = min, max
+        self.min, self.max = min_value, max_value
 
     def __str__(self):
         return f'{self.name} - integer{", optional" if self.optional else ""}\n' \
@@ -118,7 +118,7 @@ class TemplateEntry(StringEntry):
                 return f'Template key failed {str(e)}, required keys: {tuple(test_dict.keys())}'
             for key in filter(lambda x: not x.optional, self.replacements):
                 if '{' + key.name not in value:
-                    return f'Key "{key.name}" not vound in template, required keys: {tuple(test_dict.keys())}'
+                    return f'Key "{key.name}" not found in template, required keys: {tuple(test_dict.keys())}'
         else:
             return res
 
