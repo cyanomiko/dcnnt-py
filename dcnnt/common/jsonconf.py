@@ -109,6 +109,8 @@ class TemplateEntry(StringEntry):
     def check(self, value, environment: Optional[Dict[str, str]] = None):
         res = super().check(value, environment)
         if res is None:
+            if value is None and self.optional:
+                return
             test_dict = {i.name: '%TEST%' for i in self.replacements}
             try:
                 value.format(**test_dict)

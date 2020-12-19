@@ -1,5 +1,6 @@
 import fnmatch
 import logging
+import subprocess
 
 from .base import Plugin
 from ..common import *
@@ -14,6 +15,8 @@ class FileTransferPlugin(Plugin):
     CONFIG_SCHEMA = DictEntry('file.conf.json', 'Common configuration for file transfer plugin', False, entries=(
         IntEntry('uin', 'UIN of device for which config will be applied', True, 1, 0xFFFFFFF, None),
         DirEntry('download_directory', 'Directory to save downloaded files', False, '/tmp/dconnect', True, False),
+        TemplateEntry('on_download', 'Template of command executed for every saved file',
+                      True, 0, 4096, None, replacements=(Rep('path', 'Path to saved file', True),)),
         ListEntry('shared_dirs', 'Directories shared to client', False, 0, 1073741824, (),
                   entry=DictEntry('shared_dirs[]', 'Description of shared directory', False, entries=(
                       DirEntry('path', 'Path to shared directory', False, '/tmp/dconnect', True, False),
@@ -100,6 +103,11 @@ class FileTransferPlugin(Plugin):
             f.close()
             self.log('File received ({} bytes)'.format(wrote), logging.INFO)
             self.rpc_send(RPCResponse(request.id, dict(code=0, message='OK')))
+            on_download = self.conf('on_download')
+            if isinstance(on_download, str):
+                command = on_download.format(path=path)
+                self.log('Execute: "{}"'.format(command))
+                subprocess.call(command, shell=True)
 
     def handle_list_shared(self, request):
         """Create shared files info and return as JSON"""
