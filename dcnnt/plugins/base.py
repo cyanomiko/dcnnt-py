@@ -37,6 +37,30 @@ class PluginInitializer:
         return False
 
 
+class HandlerExit(Exception):
+    """Raising of this exception causes RPC handler exit and normal response sending"""
+
+    def __init__(self, response: RPCResponse):
+        self.response = response
+        self.message = response.result.get('message', str(response.result))
+
+    @classmethod
+    def new(cls, request: RPCRequest, code: int, message: str):
+        """Create typical HandlerExit with code-message result response"""
+        return cls(RPCResponse(request.id, dict(code=code, message=message)))
+
+
+class HandlerFail(Exception):
+    """Raising of this exception causes RPC handler exit, no any response sent"""
+
+    def __init__(self, message: str):
+        self.message = message
+
+
+class PluginFail(HandlerFail):
+    """Raising of this exception causes plugin loop exit, no any response sent"""
+
+
 class Plugin:
     """Base plugin class"""
     MARK = b'\0\0\0\0'
@@ -113,6 +137,29 @@ class Plugin:
         except BaseException as e:
             self.log(e, logging.WARNING)
 
+    def process_request(self, request: RPCRequest):
+        """Process one RPC request"""
+        raise NotImplementedError
+
     def main(self):
         """Entry point for plugins called in TCP handler"""
-        raise NotImplementedError
+        while True:
+            request = self.rpc_read()
+            self.log(request)
+            if request is None:
+                self.log('No more requests, stop handler')
+                return
+            try:
+                self.process_request(request)
+            except HandlerExit as e:
+                self.log(f'Handler exit: {e.message}')
+                self.rpc_send(e.response)
+            except PluginFail as e:
+                self.log(f'Plugin fail: {e.message}')
+                return
+            except HandlerFail as e:
+                self.log(f'Handler fail: {e.message}')
+            except BaseException as e:
+                self.logger.error(f'Exception {e}')
+                self.logger.exception(e)
+                return
