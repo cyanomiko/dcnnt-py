@@ -148,16 +148,10 @@ class FileTransferPlugin(Plugin):
             else:
                 self.rpc_send(RPCResponse(request.id, dict(code=1, message='No such index: {}'.format(index))))
 
-    def main(self):
-        while True:
-            request = self.rpc_read()
-            self.log(request)
-            if request is None:
-                self.log('[FileTransferPlugin] No more requests, stop handler')
-                return
-            if request.method == 'list':
-                self.handle_list_shared(request)
-            elif request.method == 'download':
-                self.handle_download(request)
-            elif request.method == 'upload':
-                self.handle_upload(request)
+    def process_request(self, request: RPCRequest):
+        if request.method == 'list':
+            self.handle_list_shared(request)
+        elif request.method == 'download':
+            self.handle_download(request)
+        elif request.method == 'upload':
+            self.handle_upload(request)
