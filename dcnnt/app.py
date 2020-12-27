@@ -155,6 +155,4 @@ class DConnectApp(Daemon):
         self.tcp.server_close()
         self.log.debug('Close UDP socket...')
         self.udp.server_close()
-        self.log.debug('Save devices')
-        self.dm.dump()
         sys.exit(0)
