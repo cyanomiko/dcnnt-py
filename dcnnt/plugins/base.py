@@ -1,5 +1,6 @@
 import glob
-import logging
+from abc import ABC
+from logging import Logger, DEBUG, INFO, WARNING, ERROR
 
 from ..common import *
 
@@ -73,16 +74,16 @@ class Plugin:
     def __init__(self, app, handler, device):
         self.app, self.logger, self.handler, self.sock, self.device = app, app.log, handler, handler.sock, device
 
-    def log(self, message, level=logging.INFO):
+    def log(self, message, level: int = INFO):
         """Make log record with specified level"""
-        self.logger.log(level, '[{}] {}'.format(self.NAME, message))
+        self.logger.log(level, f'[{self.NAME}] {message}')
 
     @classmethod
     def post_init(cls):
         """Plugin-specific initialization, this function is called by plugin manager in the end of plugin init"""
         return True
 
-    def conf(self, path):
+    def conf(self, path: str):
         """Get value from config using path - key or key sequence.
         If uin is integer - try get from device-specific conf"""
         uin = self.device.uin
@@ -96,7 +97,7 @@ class Plugin:
             except (KeyError, IndexError):
                 return
             except TypeError:
-                self.log('TypeError in plugin {} while config value {}'.format(self.NAME, path), logging.ERROR)
+                self.log('TypeError in plugin {} while config value {}'.format(self.NAME, path), ERROR)
                 return
         return node
 
@@ -122,20 +123,20 @@ class Plugin:
         request_raw = self.read()
         if request_raw is None:
             return
-        self.log(request_raw, logging.DEBUG)
+        self.log(request_raw, DEBUG)
         try:
             return RPCRequest.from_dict(json.loads(request_raw.decode()))
         except BaseException as e:
-            self.log(e, logging.WARNING)
+            self.log(e, WARNING)
 
-    def rpc_send(self, obj):
+    def rpc_send(self, obj: RPCObject):
         """Send JSON-RPC 2.0 response, notification or request"""
         try:
             serialized_obj = json.dumps(obj.to_dict())
             self.send(serialized_obj.encode())
-            self.log("Sent: {}".format(serialized_obj), logging.DEBUG)
+            self.log("Sent: {}".format(serialized_obj), DEBUG)
         except BaseException as e:
-            self.log(e, logging.WARNING)
+            self.log(e, WARNING)
 
     def process_request(self, request: RPCRequest):
         """Process one RPC request"""
@@ -163,3 +164,32 @@ class Plugin:
                 self.logger.error(f'Exception {e}')
                 self.logger.exception(e)
                 return
+
+
+class BaseFilePlugin(Plugin, ABC):
+    """Common option for files with file transfer support"""
+
+    def receive_file(self, request: RPCRequest) -> str:
+        """Receive and save file from client device"""
+        try:
+            name, size = request.params['name'], request.params['size']
+        except KeyError as e:
+            raise HandlerFail(f'KeyError {e}')
+        path = os.path.join(self.conf('download_directory'), name)
+        self.log(f'Receiving {size} bytes to file {path}')
+        self.rpc_send(RPCResponse(request.id, dict(code=0, message='OK')))
+        wrote = 0
+        with open(path, 'wb') as f:
+            while wrote < size:
+                buf = self.read()
+                if buf is None:
+                    raise HandlerFail(f'File receiving aborted ({wrote} bytes received)')
+                if len(buf) == 0:
+                    req = self.rpc_read()
+                    if req.method == "cancel":
+                        raise HandlerExit.new(request, 1, 'Canceled')
+                wrote += len(buf)
+                f.write(buf)
+        self.log(f'File received ({wrote} bytes)', logging.INFO)
+        self.rpc_send(RPCResponse(request.id, dict(code=0, message='OK')))
+        return path
