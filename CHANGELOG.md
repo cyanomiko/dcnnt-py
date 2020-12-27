@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.8
+
+* Fixed clients config reset on daemon restart 
+
 ## 0.3.7
 
 * New option in file transfer plugin config: optional command executed for every downloaded file 
