@@ -190,6 +190,6 @@ class BaseFilePlugin(Plugin, ABC):
                         raise HandlerExit.new(request, 1, 'Canceled')
                 wrote += len(buf)
                 f.write(buf)
-        self.log(f'File received ({wrote} bytes)', logging.INFO)
+        self.log(f'File received ({wrote} bytes)', INFO)
         self.rpc_send(RPCResponse(request.id, dict(code=0, message='OK')))
         return path
