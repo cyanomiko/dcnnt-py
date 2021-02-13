@@ -1,21 +1,27 @@
 import json
+from typing import Dict, Any, Union, Optional, Callable, Iterable
+
 
 class RPCObject:
     """Just group of other classes"""
     __slots__ = ()
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to JSON-RPC 2.0 dictionary"""
+        raise NotImplementedError
 
 
 class RPCError(BaseException, RPCObject):
     """JSON-RPC 2.0 error object"""
     __slots__ = 'code', 'message', 'data'
 
-    def __init__(self, code, message='error', data=None):
+    def __init__(self, code: int, message: str = 'error', data=None):
         self.code, self.message, self.data = code, message, data
 
     def __repr__(self):
         return '<JSON-RPC 2.0 Error [{}]: {} - "{}">'.format(self.code, self.message, self.data)
 
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Any]:
         """Convert to JSON-RPC 2.0 dictionary"""
         d = dict(code=self.code, message=self.message)
         if self.data is not None:
@@ -27,7 +33,7 @@ class RPCError(BaseException, RPCObject):
         return type(self).__call__(self.code, self.message, data)
 
     @classmethod
-    def from_dict(cls, d):
+    def from_dict(cls, d: Dict[str, Any]):
         """Create RPCRequest object from dictionary"""
         return cls(d['code'], d['message'], d.get('data'))
 
@@ -44,7 +50,7 @@ class RPCRequest(RPCObject):
     """JSON-RPC 2.0 request/notification object"""
     __slots__ = 'id', 'method', 'params'
 
-    def __init__(self, method, params, id=None):
+    def __init__(self, method: str, params: Union[tuple, list, dict], id: Optional[int] = None):
         assert isinstance(method, str), '"method" MUST be str'
         assert isinstance(params, (tuple, list, dict)) or params is None, '"params" MUST be tuple, list, dict or None'
         assert isinstance(id, (int, str)) or id is None, '"id" MUST be int, str or None'
@@ -53,7 +59,7 @@ class RPCRequest(RPCObject):
     def __repr__(self):
         return f'<JSON-RPC 2.0 Request [{self.id}]: {self.method}({self.params})>'
 
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Any]:
         """Convert to JSON-RPC 2.0 dictionary"""
         d = dict(jsonrpc='2.0', method=self.method, params=self.params)
         if self.id is not None:
@@ -61,7 +67,7 @@ class RPCRequest(RPCObject):
         return d
 
     @classmethod
-    def from_dict(cls, d):
+    def from_dict(cls, d: Dict[str, Any]):
         """Create RPCRequest object from dictionary"""
         try:
             return cls(d['method'], d['params'], d.get('id'))
@@ -73,7 +79,7 @@ class RPCResponse(RPCObject):
     """JSON-RPC 2.0 response object"""
     __slots__ = 'id', 'result', 'error'
 
-    def __init__(self, id, result):
+    def __init__(self, id: int, result: Any):
         assert isinstance(id, (int, str)) or id is None, '"id" MUST be int, str or None'
         self.id = id
         if isinstance(result, RPCError):
@@ -84,7 +90,7 @@ class RPCResponse(RPCObject):
     def __repr__(self):
         return f'<JSON-RPC 2.0 Request [{self.id}]: {self.error if self.result is None else self.result}>'
 
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Any]:
         """Convert to JSON-RPC 2.0 dictionary"""
         d = dict(jsonrpc='2.0', id=self.id)
         if self.error is not None:
@@ -94,7 +100,7 @@ class RPCResponse(RPCObject):
         return d
 
     @classmethod
-    def from_dict(cls, d):
+    def from_dict(cls, d: Dict[str, Any]):
         """Create RPCRequest object from dictionary"""
         try:
             result = d.get('result')
@@ -106,13 +112,15 @@ class RPCResponse(RPCObject):
             raise INVALID_REQUEST_ERROR.add_data('{}: {}'.format(type(e), str(e)))
 
 
+# ToDo: Rewrite dispatcher and serializer and use them in base plugin class
 class RPCDispatcher:
     """Get decoded requests and return results (success or error) from corresponding methods"""
 
-    def __init__(self, methods):
-        self.methods = methods if isinstance(methods, dict) else {func.__name__: func for func in methods}
+    def __init__(self, methods: Union[Dict[str, Callable], Iterable[Callable]]):
+        self.methods: Dict[str, Callable] = methods if isinstance(methods, dict) \
+            else {func.__name__: func for func in methods}
 
-    def dispatch(self, request):
+    def dispatch(self, request: RPCRequest):
         """Check if request is correct, execute RPC method and return response"""
         func = self.methods.get(request.method)
         if func is None:
