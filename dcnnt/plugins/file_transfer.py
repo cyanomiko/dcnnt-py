@@ -77,7 +77,7 @@ class FileTransferPlugin(BaseFilePlugin):
 
     def handle_upload(self, request: RPCRequest):
         """Receive and save file from client"""
-        path = self.receive_file(request)
+        path = self.receive_file(request, self.conf('download_directory'))
         on_download = self.conf('on_download')
         if isinstance(on_download, str):
             command = on_download.format(path=path)

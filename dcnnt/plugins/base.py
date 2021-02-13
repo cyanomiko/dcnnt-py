@@ -83,7 +83,7 @@ class Plugin:
         """Plugin-specific initialization, this function is called by plugin manager in the end of plugin init"""
         return True
 
-    def conf(self, path: str):
+    def conf(self, path):
         """Get value from config using path - key or key sequence.
         If uin is integer - try get from device-specific conf"""
         uin = self.device.uin
@@ -169,13 +169,13 @@ class Plugin:
 class BaseFilePlugin(Plugin, ABC):
     """Common option for files with file transfer support"""
 
-    def receive_file(self, request: RPCRequest) -> str:
+    def receive_file(self, request: RPCRequest, download_directory: str) -> str:
         """Receive and save file from client device"""
         try:
             name, size = request.params['name'], request.params['size']
         except KeyError as e:
             raise HandlerFail(f'KeyError {e}')
-        path = os.path.join(self.conf('download_directory'), name)
+        path = os.path.join(download_directory, name)
         self.log(f'Receiving {size} bytes to file {path}')
         self.rpc_send(RPCResponse(request.id, dict(code=0, message='OK')))
         wrote = 0
