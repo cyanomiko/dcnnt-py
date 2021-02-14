@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.0
+
+* Plugin to open files and links on desktop
+
 ## 0.3.8
 
 * Fixed clients config reset on daemon restart 

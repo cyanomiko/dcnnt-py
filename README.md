@@ -12,6 +12,7 @@ Features
 * Configuration overrides
 * Upload files from phone to desktop
 * Download files from pre-defined directories at desktop to phone
+* Open files and web URLs from phone on desktop
 * Show phone notification
 * Execute pre-defined commands on desktop
 
@@ -23,7 +24,7 @@ From git repository:
     git clone https://github.com/cyanomiko/dcnnt-py.git
     cd dcnnt-py
     python3 setup.py sdist bdist_wheel
-    pip3 install dist/dcnnt-0.3.8-py3-none-any.whl
+    pip3 install dist/dcnnt-0.4.0-py3-none-any.whl
 
 From PyPI:
 
