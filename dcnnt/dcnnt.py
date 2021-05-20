@@ -11,10 +11,11 @@ def main():
     parser.add_argument('--doc', help='Print conf doc and exit', action='store_true')
     parser.add_argument('-c', '--configuration-directory', help='Path to configuration directory',
                         default=os.path.join(os.environ['HOME'], '.config', 'dcnnt'))
-    parser.add_argument('mode', choices=('doc', 'foreground', 'start', 'stop', 'restart'), nargs='?', default='start',
+    parser.add_argument('mode', choices=('doc', 'foreground', 'pair', 'start', 'stop', 'restart'),
+                        nargs='?', default='start',
                         help='Mode to run program: doc - just print config documentation and exit, '
-                             'foreground - run programm in current tty, '
-                             'start/stop/restart - run and stop programm as daemon')
+                             'foreground - run program in current tty, '
+                             'start/stop/restart - run and stop program as daemon')
     args = parser.parse_args(sys.argv[1:])
     if args.mode == 'doc':
         print(str(DConnectApp.CONFIG_SCHEMA))
@@ -33,6 +34,9 @@ def main():
             print(f'Starting in background, pidfile: {app.pidfile}')
             app.daemonize()
             app.run()
+        elif args.mode == 'pair':
+            app.check()
+            app.pair()
         elif args.mode == 'stop':
             pid = app.stop()
             if pid:

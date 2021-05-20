@@ -85,6 +85,16 @@ class DeviceManager(dict):
         for address, device in self.items():
             self.dump_device(device)
 
+    def update_device_password(self, uin, password):
+        """Update current password for device and re-generate keys"""
+        device = self.get(uin)
+        if isinstance(device, Device):
+            device.password = password
+            device.init_keys(self.app.dev.uin, self.app.dev.password)
+            self.dump_device(device)
+            return True
+        return False
+
     def update_device(self, uin, ip, name=None, role=None):
         """Update current network address for known device or add new device"""
         device = self.get(uin)

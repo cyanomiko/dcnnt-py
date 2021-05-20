@@ -8,7 +8,7 @@ import socket
 import logging.handlers
 from random import randint
 from threading import Thread
-from socketserver import ThreadingUDPServer
+from socketserver import ThreadingUDPServer, UDPServer
 
 from .device_manager import DeviceManager, Device
 from .server_search import ServerSearchHandler
@@ -48,6 +48,25 @@ class DConnectApp(Daemon):
         self.pidfile = conf_pidfile if conf_pidfile else os.path.join(self.xdg_runtime_dir, 'dcnnt.pid')
         self.log = self.init_logger()
         self.dm = self.plugins = self.udp = self.tcp = self.udp_thread = self.tcp_thread = None
+
+    def pair(self):
+        """Start app in pairing mode"""
+        self.log.setLevel(logging.WARNING)
+        self.dm = self.init_dm()
+        code = str(randint(100000, 999999))
+        print('App running in pairing mode')
+        print(f'Pair code:\n\n    {code[:3]}-{code[3:]}    \n')
+        udp = UDPServer(('0.0.0.0', self.conf['port']), ServerSearchHandler)
+        udp.app = self
+        udp.pairing_code = code
+        udp.paired_uin = None
+        signal.signal(signal.SIGINT, lambda a, b: Thread(name='Thread-UDP-Main-Shutdown', target=udp.shutdown).start())
+        udp.serve_forever(0.25)
+        paired_uin = udp.paired_uin
+        print(f'Successful pairing with device {paired_uin}' if paired_uin else 'Pairing failed')
+        udp.server_close()
+        del udp
+        sys.exit(0 if paired_uin else 1)
 
     def init(self):
         """Create various app internal entities"""
