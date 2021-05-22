@@ -17,6 +17,7 @@ setuptools.setup(
     long_description_content_type='text/markdown',
     url='https://github.com/cyanomiko/dcnnt-py',
     packages=setuptools.find_packages(),
+    license='MIT',
     classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: No Input/Output (Daemon)',
