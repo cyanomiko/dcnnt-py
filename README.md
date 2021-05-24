@@ -24,7 +24,7 @@ From git repository:
     git clone https://github.com/cyanomiko/dcnnt-py.git
     cd dcnnt-py
     python3 setup.py sdist bdist_wheel
-    pip3 install dist/dcnnt-0.4.0-py3-none-any.whl
+    pip3 install dist/dcnnt-0.5.0-py3-none-any.whl
 
 From PyPI:
 
@@ -32,6 +32,10 @@ From PyPI:
 
 Usage
 -----
+
+Pairing mode:
+
+    dcnnt pair
 
 Run as daemon:
 

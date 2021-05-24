@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.0
+
+* Pairing mode
+
 ## 0.4.0
 
 * Plugin to open files and links on desktop
