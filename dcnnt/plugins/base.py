@@ -168,6 +168,7 @@ class Plugin:
 
 class BaseFilePlugin(Plugin, ABC):
     """Common option for files with file transfer support"""
+    PART = 65532
 
     def receive_file(self, request: RPCRequest, download_directory: str) -> str:
         """Receive and save file from client device"""
@@ -193,3 +194,22 @@ class BaseFilePlugin(Plugin, ABC):
         self.log(f'File received ({wrote} bytes)', INFO)
         self.rpc_send(RPCResponse(request.id, dict(code=0, message='OK')))
         return path
+
+    def send_file(self, request: RPCRequest, path: str, size: Optional[int] = None):
+        """Common function to send file to client"""
+        if not os.path.isfile(path):
+            raise HandlerExit.new(request, 2, 'No such file')
+        file_size = os.path.getsize(path)
+        if size is not None:
+            if file_size != size:
+                raise HandlerExit.new(request, 2, 'Size mismatch')
+        self.rpc_send(RPCResponse(request.id, dict(code=0, message='OK')))
+        with open(path, 'rb') as f:
+            self.log('Start file transmission')
+            while True:
+                chunk = f.read(self.PART)
+                if len(chunk) == 0:
+                    break
+                self.send(chunk)
+                self.log('Sent {} bytes...'.format(len(chunk)))
+

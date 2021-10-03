@@ -25,7 +25,6 @@ class FileTransferPlugin(BaseFilePlugin):
                       IntEntry('deep', 'Recursion deep for subdirectories', False, 1, 1024, 1)
                   )))
     ))
-    PART = 65532
     shared_files_index = list()
 
     @staticmethod
@@ -103,22 +102,7 @@ class FileTransferPlugin(BaseFilePlugin):
             self.log('Download request is correct')
             if 0 <= index < len(self.shared_files_index):
                 path = self.shared_files_index[index]
-                if not os.path.isfile(path):
-                    self.rpc_send(RPCResponse(request.id, dict(code=2, message='No such file')))
-                    return
-                file_size = os.path.getsize(path)
-                if file_size != size:
-                    self.rpc_send(RPCResponse(request.id, dict(code=2, message='Size mismatch')))
-                    return
-                self.rpc_send(RPCResponse(request.id, dict(code=0, message='OK')))
-                with open(path, 'rb') as f:
-                    self.log('Start file transmission')
-                    while True:
-                        chunk = f.read(self.PART)
-                        if len(chunk) == 0:
-                            break
-                        self.send(chunk)
-                        self.log('Sent {} bytes...'.format(len(chunk)))
+                self.send_file(request, path, size)
             else:
                 self.rpc_send(RPCResponse(request.id, dict(code=1, message='No such index: {}'.format(index))))
 
