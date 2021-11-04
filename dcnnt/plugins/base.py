@@ -200,10 +200,13 @@ class BaseFilePlugin(Plugin, ABC):
         if not os.path.isfile(path):
             raise HandlerExit.new(request, 2, 'No such file')
         file_size = os.path.getsize(path)
+        result_init = dict(code=0, message='OK')
         if size is not None:
             if file_size != size:
                 raise HandlerExit.new(request, 2, 'Size mismatch')
-        self.rpc_send(RPCResponse(request.id, dict(code=0, message='OK')))
+        else:
+            result_init['size'] = file_size
+        self.rpc_send(RPCResponse(request.id, result_init))
         with open(path, 'rb') as f:
             self.log('Start file transmission')
             while True:
@@ -211,5 +214,5 @@ class BaseFilePlugin(Plugin, ABC):
                 if len(chunk) == 0:
                     break
                 self.send(chunk)
-                self.log('Sent {} bytes...'.format(len(chunk)))
+                # self.log('Sent {} bytes...'.format(len(chunk)))
 

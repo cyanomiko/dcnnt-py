@@ -1,3 +1,4 @@
+import logging
 import time
 import subprocess
 from typing import List, Tuple
@@ -33,76 +34,236 @@ class SyncPlugin(BaseFilePlugin):
         entries = self.conf((sub, ))
         self.rpc_send(RPCResponse(request.id, tuple(str(i['path']) for i in entries)))
 
-    def flat_fs(self, path: str) -> List[Tuple[str, int, bool]]:
+    @staticmethod
+    def get_flat_fs(base: str) -> Dict[str, Tuple[str, int, bool]]:
         """Get directory subtree as list"""
-        res = list()
-        for root, dirs, files in os.walk(path):
-            for entry in dirs:
-                res.append((os.path.join(root, entry), 0, True))
-            for entry in files:
-                p = os.path.join(root, entry)
-                res.append((p, int(os.stat(p).st_mtime * 1000), True))
+        res = dict()
+        tree_stop_set = {'', '/', os.path.normpath(base)}
+        for root, dirs, files in os.walk(base):
+            for d in dirs:
+                path = os.path.join(root, d)
+                name = path[len(base):]
+                ts = int(os.stat(path).st_mtime * 1000)
+                res[name] = name, ts, True
+            for f in files:
+                path = os.path.join(root, f)
+                name = path[len(base):]
+                ts = int(os.stat(path).st_mtime * 1000)
+                res[name] = name, ts, False
+                dir_name = os.path.dirname(path)
+                # Here timestamp of directory equals timestamp of newest file
+                while dir_name not in tree_stop_set:
+                    dir_entry = res.get(dir_name)
+                    if dir_entry:
+                        _, dir_ts, _ = dir_entry
+                        if ts > dir_ts:
+                            res[dir_name] = dir_name, ts, True
+                    dir_name = os.path.dirname(dir_name)
         return res
 
-    _ret = Tuple[List[str], List[str], List[str], List[str]]
+    @staticmethod
+    def rename_with_mark(base: str, name: str, mark: Union[str, int]) -> Optional[str]:
+        """Rename directory sync entry using timestamp"""
+        path = os.path.join(base, name)
+        if not os.path.exists(path):
+            return
+        directory = os.path.dirname(path)
+        filename = os.path.basename(name)
+        s = filename.rsplit('.', maxsplit=1)
+        if len(s) == 2:
+            name_part, extension = s
+        else:
+            name_part, extension = filename, ''
+        for suffix in ('', '-1', '-2', '-3', '-4', '-5'):
+            new_path = os.path.join(directory, f'{name_part}-{mark}{suffix}.{extension}')
+            if not os.path.exists(new_path):
+                os.rename(path, new_path)
+                return new_path[len(base):]
+        raise PluginFail(f'No safe name to rename "{path}"')
 
-    def process_dir_list(self, base: str, mode: str, data: List[Tuple[str, int, bool]]) -> _ret:
-        """Process initial dir sync data"""
-        to_create, to_backup, to_download, to_upload = list(), list(), list(), list()
-        by_name = dict()
-        for sub_path, ts, is_dir in data:
-            by_name[sub_path] = (sub_path, ts, is_dir)
-            path = os.path.join(base, sub_path)
-            if is_dir:
-                if not os.path.exists(path):
-                    to_create.append(sub_path)
-                elif not os.path.isdir(path):
-                    to_backup.append(sub_path)
-                    to_create.append(sub_path)
+    @staticmethod
+    def ensure_removed(base: str, name: str):
+        """Delete FS entry if exists"""
+        path = os.path.join(base, name)
+        if os.path.exists(path):
+            if os.path.isdir(path):
+                os.rmdir(path)
             else:
-                if os.path.isfile(path):
-                    if ts <= int(os.path.getmtime(path) * 1000 + .5):
-                        to_backup.append(sub_path)
-                        to_download.append(sub_path)
-                elif os.path.isdir(path):
-                    to_backup.append(sub_path)
-                    to_download.append(sub_path)
-                else:
-                    to_download.append(sub_path)
-        length_base = len(base)
-        for root, dirs, files in os.walk(base):
-            for entry in dirs:
-                sub_path = os.path.join(root, entry)[length_base:]
-                if sub_path not in by_name:
-                    to_backup.append(sub_path)
-            for entry in files:
-                sub_path = os.path.join(root, entry)[length_base:]
-                if sub_path not in by_name:
-                    to_upload.append(sub_path)
-                    to_backup.append(sub_path)
-        return to_create, to_backup, to_download, to_upload
+                os.unlink(path)
 
     def handle_dir_list(self, request: RPCRequest):
         """Initialize directory sync session"""
-        data = request.params.get('data')
-        mode = request.params.get('mode')
-        path = request.params.get('path')
-        if not isinstance(mode, str):
-            raise PluginFail('No "mode" param in request')
-        if not isinstance(path, str):
-            raise PluginFail('No "path" param in request')
+        args = 'data', 'mode', 'path', 'on_conflict', 'on_delete'
+        flat_list_c, mode, path, on_conflict, on_delete = map(request.params.get, args)
+        for name, value in zip(args[1:], (mode, path, on_conflict, on_delete)):
+            if not isinstance(value, str):
+                raise PluginFail(f'No correct "{name}" param in request')
         if path not in tuple(str(i['path']) for i in self.conf(('dir', ))):
             raise PluginFail('Unknown target path')
-        to_create, to_backup, to_download, to_upload = self.process_dir_list(path, mode, data)
-        if mode in {'download', 'sync'}:
-            self.rpc_send(RPCResponse(request.id, dict(session_id=f'{time.time()}.{id(request)}',
-                                                       code=0, message='OK', data=self.flat_fs(path))))
-        else:
-            self.rpc_send(RPCResponse(request.id, dict(session_id=f'{time.time()}.{id(request)}',
-                                                       code=0, message='OK', data=())))
+        do_upload = mode in {'upload', 'sync'}
+        do_download = mode in {'download', 'sync'}
+        do_delete = on_delete == 'delete'
+        self.log(f'Process {len(flat_list_c)} names, mode: "{mode}", target: "{path}", '
+                 f'on conflict: "{on_conflict}", on delete: "{on_delete}"')
+        # Lists of entries by actions
+        to_upload, to_download, to_create_c, to_create_s = list(), list(), list(), list()
+        to_rename_c, to_rename_s, to_delete_c, to_delete_s = list(), list(), list(), list()
+        # Flat data of FS subtree for server and client
+        flat_c = {i[0]: i for i in flat_list_c}
+        flat_s = self.get_flat_fs(path)
+        # flat_list_s = tuple(flat_s.values())
+        self.log(f'Created local FS flat data: {len(flat_s)} names')
+        # Compare FS subtrees
+        names_c, names_s = frozenset(flat_c.keys()), frozenset(flat_s.keys())
+        names_client_only = names_c - names_s
+        names_server_only = names_s - names_c
+        names_both = names_c & names_s
+        self.log(f'Names compared: client only: {len(names_client_only)},'
+                 f' server only: {len(names_server_only)}, in conflict: {len(names_both)}')
+        self.log('Client only:')
+        for name in sorted(names_client_only):
+            self.log(f'    {name}')
+        self.log('Server only:')
+        for name in sorted(names_server_only):
+            self.log(f'    {name}')
+        self.log('In conflict:')
+        for name in sorted(names_both):
+            self.log(f'    {name}')
+        # Process 3 groups of names
+        for name in names_client_only:
+            if do_upload:
+                if flat_c[name][2]:
+                    to_create_s.append(name)
+                else:
+                    to_upload.append(name)
+            elif do_delete:  # download only and deletion allowed
+                to_delete_c.append(name)
+        for name in names_server_only:
+            if do_download:
+                if flat_s[name][2]:
+                    to_create_c.append(name)
+                else:
+                    to_download.append(name)
+            elif do_delete:  # upload only and deletion allowed
+                to_delete_s.append(name)
+        if on_conflict in {'replace', 'new', 'both'}:  # if conflicts ignored - do nothing
+            for name in names_both:
+                _, ts_c, is_dir_c = flat_c[name]
+                _, ts_s, is_dir_s = flat_s[name]
+                if is_dir_c and is_dir_s:  # both dir already exists, just skip
+                    continue
+                if mode == 'download':  # from server to client
+                    to_c_list = to_create_c if is_dir_s else to_download
+                    if on_conflict == 'replace':
+                        to_delete_c.append(name)
+                        to_c_list.append(name)
+                    elif on_conflict == 'new':
+                        if ts_s > ts_c:
+                            to_delete_c.append(name)
+                            to_c_list.append(name)
+                    elif on_conflict == 'both':
+                        to_rename_c.append(name)
+                        to_c_list.append(name)
+                elif mode == 'upload':  # from client to server - sort of mirror for previous
+                    to_s_list = to_create_s if is_dir_c else to_upload
+                    if on_conflict == 'replace':
+                        to_delete_s.append(name)
+                        to_s_list.append(name)
+                    elif on_conflict == 'new':
+                        if ts_c > ts_s:
+                            to_delete_s.append(name)
+                            to_s_list.append(name)
+                    elif on_conflict == 'both':
+                        to_rename_s.append(name)
+                        to_s_list.append(name)
+                elif mode == 'sync':  # priority for client here
+                    to_c_list = to_create_c if is_dir_s else to_download
+                    to_s_list = to_create_s if is_dir_c else to_upload
+                    if on_conflict == 'replace':  # replace on client
+                        to_delete_c.append(name)
+                        to_c_list.append(name)
+                    elif on_conflict == 'new':
+                        if ts_c > ts_s:
+                            to_delete_s.append(name)
+                            to_s_list.append(name)
+                        else:
+                            to_delete_c.append(name)
+                            to_c_list.append(name)
+                    elif on_conflict == 'both':
+                        if is_dir_c != is_dir_s:
+                            # Don't know what to do in this case
+                            raise PluginFail('Dir-file name conflict')
+                        if (not is_dir_c) and (not is_dir_s):
+                            srv_ts = flat_s[name][1]
+                            new_name_srv = self.rename_with_mark(path, name, f'srv-{srv_ts}')
+                            to_upload.append(name)
+                            to_download.append(new_name_srv)
+        # Print some info to logs
+        self.log('To upload from client to server:')
+        for name in to_upload:
+            self.log(f'    {name}')
+        self.log('To download from server to client:')
+        for name in to_download:
+            self.log(f'    {name}')
+        self.log('To delete on client:')
+        for name in to_delete_c:
+            self.log(f'    {name}')
+        self.log('To rename on client:')
+        for name in to_rename_c:
+            self.log(f'    {name}')
+        self.log('Dirs to create on client:')
+        for name in to_create_c:
+            self.log(f'    {name}')
+        self.log('To delete on server:')
+        for name in to_delete_s:
+            self.log(f'    {name}')
+        self.log('To rename on server:')
+        for name in to_rename_s:
+            self.log(f'    {name}')
+        self.log('Dirs to create on server:')
+        for name in to_create_s:
+            self.log(f'    {name}')
+        # Do FS modifications on server
+        for name in sorted(to_rename_s):
+            new_name = self.rename_with_mark(path, name, flat_s[name][1])
+            if path:
+                self.log(f'Renamed "{name}" -> "{new_name}"')
+        for name in reversed(sorted(to_delete_s)):  # reversed order to ensure files removed before parent dirs
+            self.ensure_removed(path, name)
+            self.log(f'Removed "{name}"')
+        for name in to_create_s:
+            os.makedirs(os.path.join(path, name), exist_ok=True)
+            self.log(f'Created directory "{name}"')
+        # Send response to server
+        session_id = f'{time.time()}.{id(request)}'
+        self.rpc_send(RPCResponse(request.id, dict(upload=to_upload, download=to_download, create=to_create_c,
+                                                   delete=to_delete_c, rename=to_rename_c, session=session_id)))
+
+    def handle_dir_upload(self, request: RPCRequest):
+        """Process uploading file on dir sync"""
+        print(request.params)
+        base = request.params.get('path')
+        if base not in tuple(str(i['path']) for i in self.conf(('dir',))):
+            raise PluginFail('Unknown target path')
+        self.receive_file(request, base)
+
+    def handle_dir_download(self, request: RPCRequest):
+        """Process downloading file on dir sync"""
+        base = request.params.get('path')
+        name = request.params.get('name')
+        if base not in tuple(str(i['path']) for i in self.conf(('dir',))):
+            raise PluginFail('Unknown target path')
+        if not isinstance(name, str):
+            raise PluginFail('Incorrect arg "name"')
+        path = os.path.join(base, name)
+        self.send_file(request, path)
 
     def process_request(self, request: RPCRequest):
         if request.method == 'get_targets':
             self.handle_targets(request)
-        if request.method == 'dir_list':
+        elif request.method == 'dir_list':
             self.handle_dir_list(request)
+        elif request.method == 'dir_upload':
+            self.handle_dir_upload(request)
+        elif request.method == 'dir_download':
+            self.handle_dir_download(request)
