@@ -35,7 +35,7 @@ class SyncPlugin(BaseFilePlugin):
         self.rpc_send(RPCResponse(request.id, tuple(str(i['path']) for i in entries)))
 
     @staticmethod
-    def get_flat_fs(base: str) -> Dict[str, Tuple[str, int, bool]]:
+    def get_flat_fs(base: str) -> Dict[str, Tuple[str, int, bool, int]]:
         """Get directory subtree as list"""
         res = dict()
         tree_stop_set = {'', '/', os.path.normpath(base)}
@@ -44,12 +44,12 @@ class SyncPlugin(BaseFilePlugin):
                 path = os.path.join(root, d)
                 name = path[len(base):]
                 ts = int(os.stat(path).st_mtime * 1000)
-                res[name] = name, ts, True
+                res[name] = name, ts, True, -2
             for f in files:
                 path = os.path.join(root, f)
                 name = path[len(base):]
                 ts = int(os.stat(path).st_mtime * 1000)
-                res[name] = name, ts, False
+                res[name] = name, ts, False, -2
                 dir_name = os.path.dirname(path)
                 # Here timestamp of directory equals timestamp of newest file
                 while dir_name not in tree_stop_set:
@@ -57,7 +57,7 @@ class SyncPlugin(BaseFilePlugin):
                     if dir_entry:
                         _, dir_ts, _ = dir_entry
                         if ts > dir_ts:
-                            res[dir_name] = dir_name, ts, True
+                            res[dir_name] = dir_name, ts, True, -2
                     dir_name = os.path.dirname(dir_name)
         return res
 
@@ -109,8 +109,8 @@ class SyncPlugin(BaseFilePlugin):
         to_upload, to_download, to_create_c, to_create_s = list(), list(), list(), list()
         to_rename_c, to_rename_s, to_delete_c, to_delete_s = list(), list(), list(), list()
         # Flat data of FS subtree for server and client
-        flat_c = {i[0]: i for i in flat_list_c}
-        flat_s = self.get_flat_fs(path)
+        flat_c: Dict[str, Tuple[str, int, bool, int]] = {i[0]: (i[0], i[1], i[2] == -1, i[2]) for i in flat_list_c}
+        flat_s: Dict[str, Tuple[str, int, bool, int]] = self.get_flat_fs(path)
         # flat_list_s = tuple(flat_s.values())
         self.log(f'Created local FS flat data: {len(flat_s)} names')
         # Compare FS subtrees
@@ -148,8 +148,8 @@ class SyncPlugin(BaseFilePlugin):
                 to_delete_s.append(name)
         if on_conflict in {'replace', 'new', 'both'}:  # if conflicts ignored - do nothing
             for name in names_both:
-                _, ts_c, is_dir_c = flat_c[name]
-                _, ts_s, is_dir_s = flat_s[name]
+                _, ts_c, is_dir_c, crc_c = flat_c[name]
+                _, ts_s, is_dir_s, crc_s = flat_s[name]
                 if is_dir_c and is_dir_s:  # both dir already exists, just skip
                     continue
                 if mode == 'download':  # from server to client
