@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.0
+
+* Sync tasks plugin
+
 ## 0.5.0
 
 * Pairing mode
