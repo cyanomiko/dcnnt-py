@@ -8,13 +8,14 @@ Features
 
 * Works in background
 * Controlled via phone app 
-* Сonfigurable via JSON files
+* Configurable via JSON files
 * Configuration overrides
 * Upload files from phone to desktop
 * Download files from pre-defined directories at desktop to phone
 * Open files and web URLs from phone on desktop
 * Show phone notification
 * Execute pre-defined commands on desktop
+* Periodically running sync tasks
 
 Install
 -------
