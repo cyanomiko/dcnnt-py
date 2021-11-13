@@ -129,3 +129,36 @@ Example `rcmd.conf.json`:
       ]
     }
 
+Data sync plugin
+----------------
+
+Plugin id: `sync`
+
+Use this plugin to set periodically running tasks for data sync.
+Only directory sync tasks supported now, so only one option in config - *menu*.
+This option is list of directory descriptions - info about directories available for sync operations.
+
+Structure of directory description:
+
+* *name* - short label for directory
+* *path* - path of directory in filesystem
+* *on_done* - shell command to run after sync done - **not implemented now**
+
+Example `sync.conf.json`:
+
+    {
+      "device": null,
+      "dir": [
+        {
+          "name": "Saved maps",
+          "path": "$HOME/Download/Maps",
+          "on_done": null
+        },
+        {
+          "name": "Photos backup",
+          "path": "$HOME/Photos/Phone",
+          "on_done": "$HOME/.local/bin/update-gallery-db.sh"
+        },
+      ]
+    }
+
