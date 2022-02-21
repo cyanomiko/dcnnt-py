@@ -22,6 +22,11 @@ Options:
   * *glob* - UNIX glob of files that will be visible for device
   * *name* - visible name of directory `null` replaced with name from *path* option
   * *deep* - how many levels of subdirectories are visible for device, integer from 1 to 1024
+* *shared_dirs_external* - external lists of shared directories - easy way to share many directories, options:
+  * *path* - path to list of shared directories, list is a text file contains one path in line, 
+    env vars substitution performs automatically
+  * *glob* - UNIX glob of files that will be visible for device, will be applied for each directory in list
+  * *deep* - recursion deep for subdirectories, will be applied for each directory in list
 
 Example `file.conf.json`:
 
@@ -35,8 +40,27 @@ Example `file.conf.json`:
           "name": null,
           "deep": 100
         }
+      ],
+      "shared_dirs_external": [
+        {
+          "path": "$DCNNT_CONFIG_DIR/shared.example.txt",
+          "glob": "*",
+          "deep": 1
+        }
       ]
     }
+
+Value of `$DCNNT_CONFIG_DIR` here is directory, where config files of dcnnt stored.
+It is `$HOME/.config/dcnnt` by default or value of `-c` command line argument.
+
+Example `$DCNNT_CONFIG_DIR/shared.example.txt`:
+
+    $HOME/Photos/2018
+    $HOME/Photos/2019
+    $HOME/Photos/2021
+    $HOME/Photos/2022
+    /storage/Music/Beethoven
+    /storage/Music/Mozart
 
 Notifications
 -------------

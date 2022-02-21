@@ -77,7 +77,7 @@ class DConnectApp(Daemon):
         self.udp_thread = self.tcp_thread = None
 
     def init_environment(self):
-        """Load environment variables"""
+        """Load environment variables, add some local variables and set current directory to config dir"""
         env = {k: v for k, v in os.environ.items()}
         xdg_runtime_dir = env.get('XDG_RUNTIME_DIR', os.path.join('/', 'var', 'run', 'user', str(os.getuid())))
         if not os.path.isdir(xdg_runtime_dir):
@@ -89,6 +89,7 @@ class DConnectApp(Daemon):
             os.makedirs(runtime_dir, exist_ok=True)
         self.xdg_runtime_dir = xdg_runtime_dir
         env['DCNNT_RUNTIME_DIR'] = runtime_dir
+        env['DCNNT_CONFIG_DIR'] = self.directory
         return env
 
     def init_logger(self):

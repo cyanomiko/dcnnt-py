@@ -223,8 +223,8 @@ class ListEntry(ConfEntryBase):
     def check(self, value, environment: Optional[Dict[str, str]] = None):
         if self.optional and value is None:
             return
-        if not isinstance(value, list):
-            return f'Type of "{self.name}" is {type(value)}, list expected'
+        if not isinstance(value, (tuple, list)):
+            return f'Type of "{self.name}" is {type(value)}, tuple or list expected'
         length = len(value)
         if length > self.max_length:
             return f'Length of "{self.name}" ({length}) is more than max ({self.max_length})'

@@ -1,6 +1,7 @@
 import fnmatch
 import logging
 import subprocess
+from typing import List
 
 from .base import BaseFilePlugin, HandlerExit, HandlerFail
 from ..common import *
@@ -20,10 +21,18 @@ class FileTransferPlugin(BaseFilePlugin):
         ListEntry('shared_dirs', 'Directories shared to client', False, 0, 1073741824, (),
                   entry=DictEntry('shared_dirs[]', 'Description of shared directory', False, entries=(
                       DirEntry('path', 'Path to shared directory', False, '/tmp/dcnnt', True, False),
-                      StringEntry('name', 'Name using for directory instead of path', True, 0, 60, 'Shared'),
+                      StringEntry('name', 'Name using for directory instead of path', True, 0, 60, None),
                       StringEntry('glob', 'UNIX glob to filter visible files in directory', False, 0, 1073741824, '*'),
                       IntEntry('deep', 'Recursion deep for subdirectories', False, 1, 1024, 1)
-                  )))
+                  ))),
+        ListEntry('shared_dirs_external', 'Lists of directories shared to client', True, 0, 1073741824, (),
+                  entry=DictEntry('shared_dirs_external[]', 'Description of shared directory list', False, entries=(
+                      FileEntry('path', 'Path to list of shared directories', False,
+                                '$DCNNT_CONFIG_DIR/shared.list.txt', True, False),
+                      StringEntry('glob', 'UNIX glob to filter visible files in directories',
+                                  False, 0, 1073741824, '*'),
+                      IntEntry('deep', 'Recursion deep for subdirectories', False, 1, 1024, 1)
+                  ))),
     ))
     shared_files_index = list()
 
@@ -53,25 +62,40 @@ class FileTransferPlugin(BaseFilePlugin):
                     res.append(dict(name=name, node_type='file', size=os.path.getsize(path), index=index))
         return res
 
+    def process_shared_directory(self, path: str, name: Optional[str], glob: str, deep: int,
+                                 res: List[Dict[str, Any]], names: Dict[str, int]):
+        """Process one shared directory record"""
+        if not os.path.isdir(path):
+            self.log(f'Shared directory "{path}" not found', logging.WARN)
+            return
+        if name is None:
+            name = os.path.basename(path)
+        if name in names:
+            names[name] += 1
+            name += f' ({names[name]})'
+        else:
+            names[name] = 0
+        dir_list = self.shared_directory_list(path, glob, deep, 1)
+        res.append(dict(name=name, node_type='directory', size=len(dir_list), children=dir_list))
+
     def shared_files_info(self) -> list:
         """Create tree structure of shared directories"""
         self.shared_files_index.clear()
         res = list()
         names = dict()
         for shared_dir in self.conf('shared_dirs'):
-            path, name = shared_dir['path'], shared_dir['name']
-            if not os.path.isdir(path):
-                self.log('Shared directory "{}" not found'.format(path), logging.WARN)
+            self.process_shared_directory(shared_dir['path'], shared_dir['name'], shared_dir['glob'],
+                                          shared_dir.get('deep', 0), res, names)
+        for shared_dirs_import in self.conf('shared_dirs_external'):
+            import_path, glob = shared_dirs_import['path'], shared_dirs_import['glob']
+            deep = shared_dirs_import.get('deep', 0)
+            if not os.path.isfile(import_path):
+                self.log(f'List of shared directories "{import_path}" not found', logging.INFO)
                 continue
-            if name is None:
-                name = os.path.basename(path)
-            if name in names:
-                names[name] += 1
-                name += ' ({})'.format(names[name])
-            else:
-                names[name] = 0
-            dir_list = self.shared_directory_list(path, shared_dir['glob'], shared_dir.get('deep', 0), 1)
-            res.append(dict(name=name, node_type='directory', size=len(dir_list), children=dir_list))
+            with open(import_path) as f:
+                for path in f.read().splitlines(keepends=False):
+                    path = Template(path).safe_substitute(self.app.environment)
+                    self.process_shared_directory(path, None, glob, deep, res, names)
         return res
 
     def handle_upload(self, request: RPCRequest):
