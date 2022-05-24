@@ -1,4 +1,5 @@
 import logging
+import shutil
 import time
 import subprocess
 from typing import List, Tuple
@@ -24,6 +25,12 @@ class SyncPlugin(BaseFilePlugin):
         IntEntry('uin', 'UIN of device for which config will be applied', True, 1, 0xFFFFFFF, None),
         ListEntry('dir', 'List of directories available for sync', False, 0, 0xFFFF,
                   DIR_CONFIG_DEFAULT, entry=DIR_CONFIG_SCHEMA),
+        DictEntry('contacts', 'Contacts sync settings', False, entries=(
+            DirEntry('path', 'Directory to store vcard files', False, '/tmp/dcnnt/contacts', True, False),
+            IntEntry('backup_count', 'Count of backup files', False, 0, 4096, 3),
+            TemplateEntry('on_done', 'Template of command executed on sync task completion',
+                          True, 0, 4096, None, replacements=(Rep('path', 'Path to saved file', True),)),
+        ))
     ))
 
     def handle_targets(self, request: RPCRequest):
@@ -258,6 +265,25 @@ class SyncPlugin(BaseFilePlugin):
         path = os.path.join(base, name)
         self.send_file(request, path)
 
+    def handle_contacts_upload(self, request: RPCRequest):
+        """Process contacts backup uploading"""
+        directory = self.conf(('contacts', 'path'))
+        backup_count = self.conf(('contacts', 'backup_count'))
+        on_done = self.conf(('contacts', 'on_done'))
+        fn = request.params['name']
+        if backup_count > 0:
+            suffixes = tuple(f'.{i}.bak' for i in reversed(range(backup_count))) + ('', )
+            for i in range(len(suffixes) - 1):
+                src = os.path.join(directory, fn + suffixes[i + 1])
+                dst = os.path.join(directory, fn + suffixes[i])
+                if os.path.isfile(src):
+                    shutil.copy(src, dst)
+        res = self.receive_file(request, directory)
+        if on_done:
+            command = on_done.format(path=res)
+            self.log(f'Execute: "{command}"')
+            subprocess.call(command, shell=True)
+
     def process_request(self, request: RPCRequest):
         if request.method == 'get_targets':
             self.handle_targets(request)
@@ -267,3 +293,5 @@ class SyncPlugin(BaseFilePlugin):
             self.handle_dir_upload(request)
         elif request.method == 'dir_download':
             self.handle_dir_download(request)
+        elif request.method == 'contacts_upload':
+            self.handle_contacts_upload(request)
