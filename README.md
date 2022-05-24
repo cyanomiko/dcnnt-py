@@ -1,6 +1,8 @@
 dcnnt
 =====
 
+**NO WAR**
+
 Yet another tool to connect Android phone with desktop similar to KDE Connect.
 
 Features
