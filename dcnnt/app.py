@@ -30,7 +30,8 @@ class DConnectApp(Daemon):
             IntEntry('uin', 'Unique identifier of device in network', False, 1, 0xFFFFFFF, randint(0, 1024)),
             StringEntry('name', 'Name of device in network', False, 1, 60, socket.gethostname()),
             StringEntry('description', 'Arbitrary description of device', False, 0, 200, ''),
-            StringEntry('password', 'Password to access to device from clients', False, 0, 4096, 'password'),
+            StringEntry('password', 'Password to access to device from clients', False, 0, 4096,
+                        default=''.join(tuple(chr(randint(ord('a'), ord('z'))) for _ in range(10)))),
         )),
         IntEntry('port', 'Port for UDP and TCP sockets', False, 1, 0xFFFF, 5040),
         FileEntry('pidfile', 'Path to pidfile for daemon mode', True, '', False, False)
