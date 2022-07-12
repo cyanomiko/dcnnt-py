@@ -11,7 +11,8 @@ class OpenerPlugin(BaseFilePlugin):
     MAIN_CONF = dict()
     DEVICE_CONFS = dict()
     FILE_CONFIG_SCHEMA = DictEntry('file', 'Configuration for file opener', False, entries=(
-        DirEntry('download_directory', 'Directory to store files and data to show', False, '/tmp/dcnnt', True, False),
+        DirEntry('download_directory', 'Directory to store files and data to show',
+                 False, '/tmp/dcnnt/to_open', True, False),
         TemplateEntry('default_cmd', 'Default command to open file', False, 0, 4096, 'xdg-open "{path}"',
                       replacements=(Rep('path', 'Path to saved file', True),)),
     ))

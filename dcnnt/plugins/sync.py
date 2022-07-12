@@ -16,17 +16,17 @@ class SyncPlugin(BaseFilePlugin):
     DEVICE_CONFS = dict()
     DIR_CONFIG_SCHEMA = DictEntry('directory', 'Directory, available for sync', False, entries=(
         StringEntry('name', 'Short name for directory', False, 0, 60, 'Some dir'),
-        DirEntry('path', 'Directory to store files and data to show', False, '/tmp/dcnnt', True, False),
+        DirEntry('path', 'Directory to store files and data to show', False, '/tmp/dcnnt/sync/files', True, False),
         TemplateEntry('on_done', 'Template of command executed on sync task completion',
                       True, 0, 4096, None, replacements=(Rep('path', 'Path to saved file', True),)),
     ))
-    DIR_CONFIG_DEFAULT = (dict(name='Temporary', path='/tmp/dcnnt', on_done=None), )
+    DIR_CONFIG_DEFAULT = (dict(name='Temporary', path='/tmp/dcnnt/sync/files', on_done=None), )
     CONFIG_SCHEMA = DictEntry('sync.conf.json', 'Common configuration for sync plugin', False, entries=(
         IntEntry('uin', 'UIN of device for which config will be applied', True, 1, 0xFFFFFFF, None),
         ListEntry('dir', 'List of directories available for sync', False, 0, 0xFFFF,
                   DIR_CONFIG_DEFAULT, entry=DIR_CONFIG_SCHEMA),
         DictEntry('contacts', 'Contacts sync settings', False, entries=(
-            DirEntry('path', 'Directory to store vcard files', False, '/tmp/dcnnt/contacts', True, False),
+            DirEntry('path', 'Directory to store vcard files', False, '/tmp/dcnnt/sync/contacts', True, False),
             IntEntry('backup_count', 'Count of backup files', False, 0, 4096, 3),
             TemplateEntry('on_done', 'Template of command executed on sync task completion',
                           True, 0, 4096, None, replacements=(Rep('path', 'Path to saved file', True),)),
