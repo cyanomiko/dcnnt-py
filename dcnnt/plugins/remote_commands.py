@@ -10,9 +10,10 @@ class RemoteCommandsPlugin(Plugin):
     NAME = 'RemoteCommandsPlugin'
     MAIN_CONF = dict()
     DEVICE_CONFS = dict()
+    DEFAULT_COMMANDS = (dict(name='Example section'), dict(name='Do nothing', method='shell', cmd='true'))
     CONFIG_SCHEMA = DictEntry('rcmd.conf.json', 'Configuration for remote commands file', False, entries=(
         IntEntry('uin', 'UIN of device for which config will be applied', True, 1, 0xFFFFFFF, None),
-        ListEntry('menu', 'List of remote commands', False, 0, 1073741824, (),
+        ListEntry('menu', 'List of remote commands', False, 0, 1073741824, DEFAULT_COMMANDS,
                   entry=DictEntry('menu[]', 'Description of shared directory', False, entries=(
                       StringEntry('name', 'Displayed name for remote command', False, 0, 60, 'Do nothing'),
                       StringEntry('method', 'Method to execute command', True, 0, 1024, None),
