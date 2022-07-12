@@ -24,7 +24,7 @@ def main():
         app = DConnectApp(args.configuration_directory, True)
         app.init()
         app.run()
-        input('Press Enter to stop app...')
+        input('Press Enter to stop app...\n')
         app.shutdown()
     else:
         app = DConnectApp(args.configuration_directory, False)
