@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.0
+
+* Sync contacts
+* More structured default config with examples
+* Randomized default password
+
 ## 0.6.0
 
 * Sync tasks plugin
