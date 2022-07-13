@@ -13,13 +13,14 @@ class FileTransferPlugin(BaseFilePlugin):
     NAME = 'FileTransferPlugin'
     MAIN_CONF = dict()
     DEVICE_CONFS = dict()
+    DEFAULT_SHARED_DIRS = (dict(path='/tmp/dcnnt/files', name='Shared', glob='*', deep=1024), )
     CONFIG_SCHEMA = DictEntry('file.conf.json', 'Common configuration for file transfer plugin', False, entries=(
         IntEntry('uin', 'UIN of device for which config will be applied', True, 1, 0xFFFFFFF, None),
         DirEntry('download_directory', 'Directory to save downloaded files', False,
                  '/tmp/dcnnt/files', True, False),
         TemplateEntry('on_download', 'Template of command executed for every saved file',
                       True, 0, 4096, None, replacements=(Rep('path', 'Path to saved file', True),)),
-        ListEntry('shared_dirs', 'Directories shared to client', False, 0, 1073741824, (),
+        ListEntry('shared_dirs', 'Directories shared to client', False, 0, 1073741824, DEFAULT_SHARED_DIRS,
                   entry=DictEntry('shared_dirs[]', 'Description of shared directory', False, entries=(
                       DirEntry('path', 'Path to shared directory', False, '/tmp/dcnnt/files', True, False),
                       StringEntry('name', 'Name using for directory instead of path', True, 0, 60, None),
