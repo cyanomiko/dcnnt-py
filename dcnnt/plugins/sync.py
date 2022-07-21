@@ -49,12 +49,12 @@ class SyncPlugin(BaseFilePlugin):
         for root, dirs, files in os.walk(base):
             for d in dirs:
                 path = os.path.join(root, d)
-                name = path[len(base):]
+                name = os.path.relpath(path, base)
                 ts = int(os.stat(path).st_mtime * 1000)
                 res[name] = name, ts, True, -2
             for f in files:
                 path = os.path.join(root, f)
-                name = path[len(base):]
+                name = os.path.relpath(path, base)
                 ts = int(os.stat(path).st_mtime * 1000)
                 res[name] = name, ts, False, -2
                 dir_name = os.path.dirname(path)
