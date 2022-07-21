@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1
+
+* Fixed bug in sync plugin (downloading files from server to client)
+
 ## 0.7.0
 
 * Sync contacts
