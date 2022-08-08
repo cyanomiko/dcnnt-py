@@ -50,11 +50,12 @@ class DConnectApp(Daemon):
         self.log = self.init_logger()
         self.dm = self.plugins = self.udp = self.tcp = self.udp_thread = self.tcp_thread = None
 
-    def pair(self):
-        """Start app in pairing mode"""
+    def pair(self, code: Optional[str] = None):
+        """Start app in pairing mode, using pre-defined or random (default) pairing code"""
+        if code is None:
+            code = str(randint(100000, 999999))
         self.log.setLevel(logging.WARNING)
         self.dm = self.init_dm()
-        code = str(randint(100000, 999999))
         print('App running in pairing mode')
         print(f'Pair code:\n\n    {code[:3]}-{code[3:]}    \n')
         udp = UDPServer(('0.0.0.0', self.conf['port']), ServerSearchHandler)
