@@ -30,6 +30,12 @@ class SyncPlugin(BaseFilePlugin):
             IntEntry('backup_count', 'Count of backup files', False, 0, 4096, 3),
             TemplateEntry('on_done', 'Template of command executed on sync task completion',
                           True, 0, 4096, None, replacements=(Rep('path', 'Path to saved file', True),)),
+        )),
+        DictEntry('messages', 'SMS sync settings', False, entries=(
+            DirEntry('path', 'Directory to store messages files', False, '/tmp/dcnnt/sync/messages', True, False),
+            IntEntry('backup_count', 'Count of backup files', False, 0, 4096, 3),
+            TemplateEntry('on_done', 'Template of command executed on sync task completion',
+                          True, 0, 4096, None, replacements=(Rep('path', 'Path to the last saved file', True),)),
         ))
     ))
 
@@ -265,12 +271,18 @@ class SyncPlugin(BaseFilePlugin):
         path = os.path.join(base, name)
         self.send_file(request, path)
 
-    def handle_contacts_upload(self, request: RPCRequest):
-        """Process contacts backup uploading"""
-        directory = self.conf(('contacts', 'path'))
-        backup_count = self.conf(('contacts', 'backup_count'))
-        on_done = self.conf(('contacts', 'on_done'))
+    def common_upload_handler(self, entity_type: str, request: RPCRequest):
+        """Process any backup uploading"""
+        directory = self.conf((entity_type, 'path'))
+        backup_count = self.conf((entity_type, 'backup_count'))
+        on_done = self.conf((entity_type, 'on_done'))
         fn = request.params['name']
+        total = request.params.get('total')
+        index = request.params.get('index')
+        is_last_entry = (total is None) and (index is None)
+        if isinstance(total, int) and isinstance(index, int):
+            if total - index == 1:  # indexes starts from 0 on client
+                is_last_entry = True
         if backup_count > 0:
             suffixes = tuple(f'.{i}.bak' for i in reversed(range(backup_count))) + ('', )
             for i in range(len(suffixes) - 1):
@@ -279,10 +291,18 @@ class SyncPlugin(BaseFilePlugin):
                 if os.path.isfile(src):
                     shutil.copy(src, dst)
         res = self.receive_file(request, directory)
-        if on_done:
+        if on_done and is_last_entry:
             command = on_done.format(path=res)
             self.log(f'Execute: "{command}"')
             subprocess.call(command, shell=True)
+
+    def handle_contacts_upload(self, request: RPCRequest):
+        """Process contacts backup uploading"""
+        return self.common_upload_handler('contacts', request)
+
+    def handle_messages_upload(self, request: RPCRequest):
+        """Process messages backup uploading"""
+        return self.common_upload_handler('messages', request)
 
     def process_request(self, request: RPCRequest):
         if request.method == 'get_targets':
@@ -295,3 +315,5 @@ class SyncPlugin(BaseFilePlugin):
             self.handle_dir_download(request)
         elif request.method == 'contacts_upload':
             self.handle_contacts_upload(request)
+        elif request.method == 'messages_upload':
+            self.handle_messages_upload(request)
