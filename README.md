@@ -27,7 +27,7 @@ From git repository:
     git clone https://github.com/cyanomiko/dcnnt-py.git
     cd dcnnt-py
     python3 setup.py sdist bdist_wheel
-    pip3 install dist/dcnnt-0.7.1-py3-none-any.whl
+    pip3 install dist/dcnnt-0.8.0-py3-none-any.whl
 
 From PyPI:
 

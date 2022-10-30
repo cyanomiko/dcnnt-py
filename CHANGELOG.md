@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.0
+
+* Sync SMS
+
 ## 0.7.1
 
 * Fixed bug in sync plugin (downloading files from server to client)
