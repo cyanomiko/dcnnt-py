@@ -223,7 +223,9 @@ class ListEntry(ConfEntryBase):
     def check(self, value, environment: Optional[Dict[str, str]] = None):
         if self.optional and value is None:
             return
-        if not isinstance(value, (tuple, list)):
+        if isinstance(value, tuple):
+            value = list(value)
+        if not isinstance(value, list):
             return f'Type of "{self.name}" is {type(value)}, tuple or list expected'
         length = len(value)
         if length > self.max_length:
@@ -258,7 +260,8 @@ class DictEntry(ConfEntryBase):
         for entry in self.entries:
             name = entry.name
             if name not in value and not entry.optional:
-                return f'Entry "{entry.name}" not found in "{self.name}" dictionary'
+                value[name] = entry.get_default()
+                # return f'Entry "{entry.name}" not found in "{self.name}" dictionary'
             value[name] = entry.pre_process(value.get(name), environment)
             res = entry.check(value[name], environment)
             if res is not None:
