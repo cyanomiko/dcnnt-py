@@ -21,23 +21,42 @@ class SyncPlugin(BaseFilePlugin):
                       True, 0, 4096, None, replacements=(Rep('path', 'Path to saved file', True),)),
     ))
     DIR_CONFIG_DEFAULT = (dict(name='Temporary', path='/tmp/dcnnt/sync/files', on_done=None), )
+    FILE_CONFIG_SCHEMA = DictEntry('file', 'File, available for sync', False, entries=(
+        StringEntry('name', 'Short name for file', False, 0, 60, 'Some dir'),
+        FileEntry('path', 'Path to file', False, '/tmp/dcnnt/sync/dcnnt-example.txt', False, False),
+        TemplateEntry('on_merge', 'Template of command executed on merge task to merge local and remote files',
+                      True, 0, 4096, default='cat "{local}" "{remote}" > "{output}"',
+                      replacements=(Rep('local', 'Path to local version of file', True),
+                                    Rep('remote', 'Path to remote version of file', True),
+                                    Rep('output', 'Path to save merged file', True),)),
+        TemplateEntry('on_done', 'Template of command executed on sync task completion',
+                      True, 0, 4096, None, replacements=(Rep('path', 'Path to saved file', True),)),
+    ))
+    FILE_CONFIG_DEFAULT = (dict(name='Example', path='/tmp/dcnnt/sync/dcnnt-example-file.txt',
+                                on_merge='cat "{local}" "{remote}" > "{output}"',
+                                on_done='true'),)
     CONFIG_SCHEMA = DictEntry('sync.conf.json', 'Common configuration for sync plugin', False, entries=(
         IntEntry('uin', 'UIN of device for which config will be applied', True, 1, 0xFFFFFFF, None),
         ListEntry('dir', 'List of directories available for sync', False, 0, 0xFFFF,
                   DIR_CONFIG_DEFAULT, entry=DIR_CONFIG_SCHEMA),
+        ListEntry('file', 'List of files available for sync', False, 0, 0xFFFF,
+                  FILE_CONFIG_DEFAULT, entry=FILE_CONFIG_SCHEMA),
         DictEntry('contacts', 'Contacts sync settings', False, entries=(
             DirEntry('path', 'Directory to store vcard files', False, '/tmp/dcnnt/sync/contacts', True, False),
             IntEntry('backup_count', 'Count of backup files', False, 0, 4096, 3),
             TemplateEntry('on_done', 'Template of command executed on sync task completion',
                           True, 0, 4096, None, replacements=(Rep('path', 'Path to saved file', True),)),
         )),
-        DictEntry('messages', 'SMS sync settings', False, entries=(
+        DictEntry('messages', 'SMS sync settings', True, entries=(
             DirEntry('path', 'Directory to store messages files', False, '/tmp/dcnnt/sync/messages', True, False),
             IntEntry('backup_count', 'Count of backup files', False, 0, 4096, 3),
             TemplateEntry('on_done', 'Template of command executed on sync task completion',
                           True, 0, 4096, None, replacements=(Rep('path', 'Path to the last saved file', True),)),
         ))
     ))
+
+    def __init__(self, app, handler, device):
+        super().__init__(app, handler, device)
 
     def handle_targets(self, request: RPCRequest):
         """Return list of sync entries to device"""
@@ -304,6 +323,31 @@ class SyncPlugin(BaseFilePlugin):
         """Process messages backup uploading"""
         return self.common_upload_handler('messages', request)
 
+    def ensure_file_syncable(self, path: str):
+        """Check if file in list of sync files, raise exception otherwise"""
+        if path not in {i['path'] for i in self.conf('file')}:
+            raise PluginFail('No file in sync list')
+
+    def handle_file_info(self, request: RPCRequest):
+        """Send some info about sync file to client"""
+        path = str(request.params['path'])
+        self.ensure_file_syncable(path)
+        exists = os.path.isfile(path)
+        ts = int(os.path.getmtime(path) * 1000 + .5) if exists else 0
+        self.rpc_send(RPCResponse(request.id, {'exists': exists, 'ts': ts}))
+
+    def handle_file_upload(self, request: RPCRequest):
+        """Process uploading file on file sync"""
+        path = request.params.get('path')
+        self.ensure_file_syncable(path)
+        self.receive_file(request, path)
+
+    def handle_file_download(self, request: RPCRequest):
+        """Process downloading file on file sync"""
+        path = request.params.get('path')
+        self.ensure_file_syncable(path)
+        self.send_file(request, path)
+
     def process_request(self, request: RPCRequest):
         if request.method == 'get_targets':
             self.handle_targets(request)
@@ -317,3 +361,9 @@ class SyncPlugin(BaseFilePlugin):
             self.handle_contacts_upload(request)
         elif request.method == 'messages_upload':
             self.handle_messages_upload(request)
+        elif request.method == 'file_info':
+            self.handle_file_info(request)
+        elif request.method == 'file_upload':
+            self.handle_file_upload(request)
+        elif request.method == 'file_download':
+            self.handle_file_download(request)
