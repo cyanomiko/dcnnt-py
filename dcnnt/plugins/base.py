@@ -170,13 +170,13 @@ class BaseFilePlugin(Plugin, ABC):
     """Common option for files with file transfer support"""
     PART = 65532
 
-    def receive_file(self, request: RPCRequest, download_directory: str) -> str:
+    def _receive_file(self, request: RPCRequest, download_directory: str, path: Optional[str]) -> str:
         """Receive and save file from client device"""
         try:
             name, size = request.params['name'], request.params['size']
         except KeyError as e:
             raise HandlerFail(f'KeyError {e}')
-        path = os.path.join(download_directory, name)
+        path = os.path.join(download_directory, name) if path is None else path
         self.log(f'Receiving {size} bytes to file {path}')
         self.rpc_send(RPCResponse(request.id, dict(code=0, message='OK')))
         wrote = 0
@@ -194,6 +194,14 @@ class BaseFilePlugin(Plugin, ABC):
         self.log(f'File received ({wrote} bytes)', INFO)
         self.rpc_send(RPCResponse(request.id, dict(code=0, message='OK')))
         return path
+
+    def receive_file_to_path(self, request: RPCRequest, path: str) -> str:
+        """Receive and save file from client device to path"""
+        return self._receive_file(request, '', path)
+
+    def receive_file(self, request: RPCRequest, download_directory: str) -> str:
+        """Receive and save file from client device to directory"""
+        return self._receive_file(request, download_directory, None)
 
     def send_file(self, request: RPCRequest, path: str, size: Optional[int] = None):
         """Common function to send file to client"""
