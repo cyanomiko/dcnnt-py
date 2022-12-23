@@ -37,6 +37,8 @@ class SyncPlugin(BaseFilePlugin):
                                 on_done='true'),)
     CONFIG_SCHEMA = DictEntry('sync.conf.json', 'Common configuration for sync plugin', False, entries=(
         IntEntry('uin', 'UIN of device for which config will be applied', True, 1, 0xFFFFFFF, None),
+        DirEntry('working_directory', 'Directory to store temporary files',
+                 True, '/tmp/dcnnt/sync_tmp', True, False),
         ListEntry('dir', 'List of directories available for sync', False, 0, 0xFFFF,
                   DIR_CONFIG_DEFAULT, entry=DIR_CONFIG_SCHEMA),
         ListEntry('file', 'List of files available for sync', False, 0, 0xFFFF,
@@ -323,10 +325,12 @@ class SyncPlugin(BaseFilePlugin):
         """Process messages backup uploading"""
         return self.common_upload_handler('messages', request)
 
-    def ensure_file_syncable(self, path: str):
-        """Check if file in list of sync files, raise exception otherwise"""
-        if path not in {i['path'] for i in self.conf('file')}:
-            raise PluginFail('No file in sync list')
+    def ensure_file_syncable(self, path: str) -> Optional[str]:
+        """Check if file in list of sync files and return on_merge option, raise exception otherwise"""
+        for i in self.conf('file'):
+            if path in i['path']:
+                return i.get('on_merge')
+        raise PluginFail('No file in sync list')
 
     def handle_file_info(self, request: RPCRequest):
         """Send some info about sync file to client"""
@@ -338,9 +342,25 @@ class SyncPlugin(BaseFilePlugin):
 
     def handle_file_upload(self, request: RPCRequest):
         """Process uploading file on file sync"""
-        path = request.params.get('path')
-        self.ensure_file_syncable(path)
-        self.receive_file(request, path)
+        path = str(request.params.get('path'))
+        merge_mode = bool(request.params.get('merge'))
+        on_merge = self.ensure_file_syncable(path)
+        if merge_mode:
+            if on_merge is None:
+                raise PluginFail('No merge script set')
+            random = str(int(time.time() * 1000)) + str(id(path))
+            directory = os.path.join(self.conf('working_directory'), random)
+            os.makedirs(directory)
+            name = os.path.basename(path)
+            server_file_path = os.path.join(directory, f'server-{name}')
+            client_file_path = os.path.join(directory, f'client-{name}')
+            shutil.copy(path, server_file_path)
+            self.receive_file_to_path(request, client_file_path)
+            command = on_merge.format(local=server_file_path, remote=client_file_path, output=path)
+            self.log(f'Execute: "{command}"')
+            subprocess.call(command, shell=True)
+        else:
+            self.receive_file_to_path(request, path)
 
     def handle_file_download(self, request: RPCRequest):
         """Process downloading file on file sync"""
