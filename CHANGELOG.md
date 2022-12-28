@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.0
+
+* Sync single files
+
 ## 0.8.0
 
 * Sync SMS
