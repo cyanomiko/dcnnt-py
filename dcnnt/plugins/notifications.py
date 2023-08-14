@@ -1,5 +1,6 @@
 import logging
 import subprocess
+from shlex import quote
 
 from .base import Plugin
 from ..common import *
@@ -53,6 +54,6 @@ class NotificationsPlugin(Plugin):
                         except Exception as e:
                             self.log(e, logging.WARNING)
                     icon = icon_path if icon_data else ''
-                    command = cmd.format(uin=uin, name=name, icon=icon, text=text, title=title, package=package)
+                    command = cmd.format(uin=quote(uin), name=quote(name), icon=quote(icon), text=quote(text), title=quote(title), package=quote(package))
                     self.log('Execute: "{}"'.format(command))
                     subprocess.call(command, shell=True)
