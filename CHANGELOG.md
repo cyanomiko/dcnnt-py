@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.1
+
+* Fix command injection vulnerability
+
 ## 0.9.0
 
 * Sync single files
