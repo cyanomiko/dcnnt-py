@@ -29,6 +29,11 @@ class NotificationsPlugin(Plugin):
     def __init__(self, app, handler, device):
         super().__init__(app, handler, device)
 
+    @staticmethod
+    def quote(a: Any) -> str:
+        """Quote arg for notification command"""
+        return quote(f'{a}').strip("'")
+
     def main(self):
         while True:
             request = self.rpc_read()
@@ -54,6 +59,7 @@ class NotificationsPlugin(Plugin):
                         except Exception as e:
                             self.log(e, logging.WARNING)
                     icon = icon_path if icon_data else ''
-                    command = cmd.format(uin=quote(uin), name=quote(name), icon=quote(icon), text=quote(text), title=quote(title), package=quote(package))
+                    command = cmd.format(uin=self.quote(uin), name=self.quote(name), icon=self.quote(icon),
+                                         text=self.quote(text), title=self.quote(title), package=self.quote(package))
                     self.log('Execute: "{}"'.format(command))
                     subprocess.call(command, shell=True)
