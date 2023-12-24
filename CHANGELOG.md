@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.2
+
+* Fix broken notifications plugin
+
 ## 0.9.1
 
 * Fix command injection vulnerability
