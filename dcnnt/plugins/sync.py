@@ -4,7 +4,7 @@ import time
 import subprocess
 from typing import List, Tuple
 
-from .base import BaseFilePlugin, PluginFail
+from .base import BaseFilePlugin, PluginFail, HandlerExit, HandlerFail
 from ..common import *
 
 
@@ -35,6 +35,18 @@ class SyncPlugin(BaseFilePlugin):
     FILE_CONFIG_DEFAULT = (dict(name='Example', path='/tmp/dcnnt/sync/dcnnt-example-file.txt',
                                 on_merge='cat "{local}" "{remote}" > "{output}"',
                                 on_done='true'),)
+    CLIPBOARD_CONFIG_SCHEMA = DictEntry('clipboard', 'Clipboard, available for sync', False, entries=(
+        StringEntry('name', 'Short name for clipboard', False, 0, 60, 'Clipboard'),
+        StringEntry('clipboard', 'System ID/name of clipboard', False, 0, 60, 'clipboard'),
+        TemplateEntry('read', 'Template of command executed to read clipboard (should print content to stdout)',
+                      True, 0, 4096, None, replacements=(Rep('clipboard', 'Clipboard ID/name', True),)),
+        TemplateEntry('write', 'Template of command executed to write to clipboard (should read content from stdin)',
+                      True, 0, 4096, None, replacements=(Rep('clipboard', 'Clipboard ID/name', True),)),
+    ))
+    CLIPBOARD_CONFIG_DEFAULT = (dict(name='Clipboard',
+                                     clipboard='clipboard',
+                                     read='xclip -selection "{clipboard}" -o',
+                                     write='xclip -selection "{clipboard}" -i'),)
     CONFIG_SCHEMA = DictEntry('sync.conf.json', 'Common configuration for sync plugin', False, entries=(
         IntEntry('uin', 'UIN of device for which config will be applied', True, 1, 0xFFFFFFF, None),
         DirEntry('working_directory', 'Directory to store temporary files',
@@ -43,6 +55,8 @@ class SyncPlugin(BaseFilePlugin):
                   DIR_CONFIG_DEFAULT, entry=DIR_CONFIG_SCHEMA),
         ListEntry('file', 'List of files available for sync', False, 0, 0xFFFF,
                   FILE_CONFIG_DEFAULT, entry=FILE_CONFIG_SCHEMA),
+        ListEntry('clipboard', 'List of clipboards available for sync', False, 0, 0xFFFF,
+                  CLIPBOARD_CONFIG_DEFAULT, entry=FILE_CONFIG_SCHEMA),
         DictEntry('contacts', 'Contacts sync settings', False, entries=(
             DirEntry('path', 'Directory to store vcard files', False, '/tmp/dcnnt/sync/contacts', True, False),
             IntEntry('backup_count', 'Count of backup files', False, 0, 4096, 3),
@@ -66,7 +80,8 @@ class SyncPlugin(BaseFilePlugin):
         if not isinstance(sub, str):
             raise PluginFail('No "sub" param in request')
         entries = self.conf((sub, ))
-        self.rpc_send(RPCResponse(request.id, tuple(str(i['path']) for i in entries)))
+        key = 'clipboard' if sub == 'clipboard' else 'path'
+        self.rpc_send(RPCResponse(request.id, tuple(str(i[key]) for i in entries)))
 
     @staticmethod
     def get_flat_fs(base: str) -> Dict[str, Tuple[str, int, bool, int]]:
@@ -368,6 +383,32 @@ class SyncPlugin(BaseFilePlugin):
         self.ensure_file_syncable(path)
         self.send_file(request, path)
 
+    def conf_clipboard(self, clipboard_id: str) -> Optional[Dict[str, str]]:
+        """Get config for clipboard sync entry"""
+        for conf in self.conf('clipboard'):
+            if clipboard_id == conf['clipboard']:
+                return conf
+
+    def handle_clipboard(self, request: RPCRequest):
+        """Process clipboard fetch or send request"""
+        clipboard_id = request.params['clipboard']
+        conf = self.conf_clipboard(clipboard_id)
+        if conf is None:
+            raise HandlerExit.new(request, 1, 'No such clipboard')
+        if request.method == 'clipboard_fetch':
+            cmd = conf['read'].format(clipboard=clipboard_id)
+            text = subprocess.check_output(cmd, timeout=15, shell=True).decode(errors='ignore')
+            return self.rpc_send(RPCResponse(request.id, {'code': 0, 'text': text}))
+        elif request.method == 'clipboard_send':
+            cmd = conf['write'].format(clipboard=clipboard_id)
+            try:
+                subprocess.run(cmd, shell=True, timeout=15, input=request.params['text'].encode(errors='ignore'))
+            except Exception as e:
+                return self.rpc_send(RPCResponse(request.id, {'code': 1, 'message': f'Error: {e}'}))
+            return self.rpc_send(RPCResponse(request.id, {'code': 0, 'message': 'OK'}))
+        else:
+            raise HandlerFail(f'Unknown method "{request.method}"')
+
     def process_request(self, request: RPCRequest):
         if request.method == 'get_targets':
             self.handle_targets(request)
@@ -387,3 +428,7 @@ class SyncPlugin(BaseFilePlugin):
             self.handle_file_upload(request)
         elif request.method == 'file_download':
             self.handle_file_download(request)
+        elif request.method == 'clipboard_fetch':
+            self.handle_clipboard(request)
+        elif request.method == 'clipboard_send':
+            self.handle_clipboard(request)
