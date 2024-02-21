@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.0
+
+* Clipboard sync support
+
 ## 0.9.2
 
 * Fix broken notifications plugin
