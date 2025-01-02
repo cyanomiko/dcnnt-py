@@ -285,6 +285,7 @@ class ConfigLoader:
                     os.makedirs(os.path.dirname(self.path), exist_ok=True)
                     with open(self.path, 'w') as f:
                         json.dump(self.schema.get_default(), f, indent=2)
+                        f.write('\n')
                 except BaseException as e:
                     return f'Could not write default configuration to file {self.path} ({e})'
             else:
